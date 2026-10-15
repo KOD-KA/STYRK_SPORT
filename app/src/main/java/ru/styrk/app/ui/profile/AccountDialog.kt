@@ -3,6 +3,7 @@ package ru.styrk.app.ui.profile
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -509,6 +510,18 @@ fun AccountDialog(
                         modifier = Modifier.fillMaxWidth(),
                         colors = fieldColors()
                     )
+                    // «gmil.com» вместо «gmail.com»: письмо с паролем ушло бы в никуда.
+                    ru.styrk.app.ui.common.MailTypo.suggest(email)?.let { fix ->
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            "Возможно, вы имели в виду $fix? Исправить",
+                            color = ru.styrk.app.ui.theme.Gold, fontSize = 12.sp, lineHeight = 16.sp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { email = fix }
+                                .padding(vertical = 2.dp)
+                        )
+                    }
                     Spacer(Modifier.height(12.dp))
                     PasswordField(password, { password = it }, "Пароль")
                     Spacer(Modifier.height(6.dp))
