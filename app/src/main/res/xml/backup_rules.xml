@@ -1,13 +1,20 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Правила резервного копирования Android для версий до 12 (API 30 и ниже).
+
+    Копируется всё, кроме ключа доступа к серверу синхронизации.
+
+    Почему именно так. Сам дневник в копии нужен: сменил телефон —
+    тренировки вернулись, и это ровно то, ради чего копирование
+    существует. А ключ доступа — это вход в учётную запись. Он лежит
+    в styrk_sync.xml, и вместе с копией уезжал бы на серверы Google.
+    Восстановили бы такую копию на чужом устройстве — оно оказалось бы
+    в аккаунте сразу, без пароля.
+
+    Копия шифруется кодом блокировки телефона, так что риск невелик.
+    Но ключ в облаке не нужен вовсе: после восстановления человек
+    один раз вводит пароль, и всё встаёт на место.
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <exclude domain="sharedpref" path="styrk_sync.xml"/>
 </full-backup-content>

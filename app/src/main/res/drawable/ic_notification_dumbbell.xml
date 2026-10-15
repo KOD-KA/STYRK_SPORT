@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Иконка уведомлений STYRK — гантель ПОД НАКЛОНОМ с крупными блинами
+  и коротким грифом (v1.7.2).
+
+  ВАЖНО: иконки в панели уведомлений Android обязаны быть СИЛУЭТОМ
+  (только альфа-канал, залитый белым). Систему цвет не волнует — она
+  сама перекрашивает силуэт: белым на тёмной шторке и тёмным на светлой.
+  Поэтому один файл покрывает обе темы.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+
+    <!-- Вся гантель повёрнута на -35°, чтобы читалась «по диагонали» -->
+    <group
+        android:pivotX="12"
+        android:pivotY="12"
+        android:rotation="-35">
+
+        <!-- Левый блин: внешний (крупный) -->
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M2.4,6.2 h3.2 v11.6 h-3.2 z" />
+        <!-- Левый блин: внутренний (ещё крупнее) -->
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M6.2,4.6 h3.4 v14.8 h-3.4 z" />
+
+        <!-- Короткий гриф -->
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M9.6,10.6 h4.8 v2.8 h-4.8 z" />
+
+        <!-- Правый блин: внутренний -->
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M14.4,4.6 h3.4 v14.8 h-3.4 z" />
+        <!-- Правый блин: внешний -->
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M18.4,6.2 h3.2 v11.6 h-3.2 z" />
+    </group>
+</vector>

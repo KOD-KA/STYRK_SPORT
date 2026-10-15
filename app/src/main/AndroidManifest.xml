@@ -26,6 +26,20 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- Ссылка из письма «Восстановление пароля» открывается
+                 прямо в приложении. autoVerify: Android сам проверяет
+                 styrk.ru/.well-known/assetlinks.json и открывает ссылку
+                 без вопроса «чем открыть». Пока проверка не прошла —
+                 ссылка откроется в браузере, там та же страница. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https"
+                      android:host="styrk.ru"
+                      android:pathPrefix="/reset-password" />
+            </intent-filter>
         </activity>
     </application>
 

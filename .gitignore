@@ -1,17 +1,43 @@
+# STYRK — что НЕ попадает в git (репозиторий на GitHub публичный!)
+# Обновлено 15.10.2026.
+
+# ── СЕКРЕТЫ: никогда не в git ─────────────────────────────────────
+keystore.properties
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pem
+.env
+.env.*
+
+# ── Сборка и кэши: создаются заново при каждой сборке ─────────────
+build/
+.gradle/
+.kotlin/
+.cxx/
+.externalNativeBuild/
+/captures/
+*.hprof
+
+# ── Собранные приложения ──────────────────────────────────────────
+*.apk
+*.aab
+*.dm
+/app/release/
+/app/debug/
+
+# ── Android Studio: личные настройки этого ПК ─────────────────────
+.idea/
 *.iml
-.gradle
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
 local.properties
 
-.idea/
+# ── Архивы и старые копии кода ────────────────────────────────────
+*.zip
+*.rar
+*.7z
+
+# ── Мусор системы ─────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
