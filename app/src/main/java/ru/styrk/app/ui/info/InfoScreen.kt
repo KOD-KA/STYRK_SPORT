@@ -1,6 +1,7 @@
 package ru.styrk.app.ui.info
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -35,6 +36,11 @@ import ru.styrk.app.ui.theme.LightGray
 import ru.styrk.app.ui.theme.SoftGray
 import ru.styrk.app.ui.theme.White
 import ru.styrk.app.data.model.MuscleGroup
+import ru.styrk.app.data.model.InfoContent
+import ru.styrk.app.data.model.Legend
+import ru.styrk.app.data.model.ProgramDay
+import ru.styrk.app.data.model.TrainingProgram
+import ru.styrk.app.data.model.TrainingTip
 import ru.styrk.app.data.model.WorkoutPreset
 import ru.styrk.app.data.model.WorkoutPresets
 import ru.styrk.app.viewmodel.TrainingSessionViewModel
@@ -53,127 +59,8 @@ import java.util.Locale
 //  ДАННЫЕ
 // ═══════════════════════════════════════════════════════════════════
 
-private data class Tip(val icon: String, val title: String, val body: String)
-
-private val TIPS = listOf(
-    Tip("🔥", "Разминка перед тренировкой",
-        "Перед рабочими подходами сделайте 5–10 минут лёгкого кардио и 1–2 разминочных подхода с небольшим весом на каждое упражнение. Это снижает риск травм и улучшает качество движений в рабочих подходах."),
-    Tip("📈", "Прогрессия нагрузки",
-        "Мышцы растут только когда нагрузка постепенно увеличивается. Раз в 1–2 недели старайтесь добавлять немного веса или повторений — но только если предыдущий вес давался уверенно, без потери техники."),
-    Tip("🍗", "Питание для роста",
-        "Для набора массы держите небольшой профицит калорий и употребляйте около 1.6–2.2 г белка на кг веса тела в день. Без достаточного белка и калорий прогресс в силе и объёме мышц замедляется."),
-    Tip("🛌", "Восстановление и сон",
-        "Мышцы растут не во время тренировки, а во время отдыха. Старайтесь спать 7–9 часов и давайте каждой группе мышц минимум 48 часов отдыха перед следующей тяжёлой тренировкой."),
-    Tip("🎯", "Техника важнее веса",
-        "Слишком тяжёлый вес с нарушением техники почти всегда приводит к травмам и меньше нагружает целевую мышцу. Сначала закрепите правильную технику на умеренном весе, и только потом увеличивайте нагрузку."),
-    Tip("💧", "Вода и разогрев суставов",
-        "Обезвоживание снижает силовые показатели и выносливость. Пейте воду небольшими порциями на протяжении всей тренировки, а не только до или после неё."),
-    Tip("🏃", "Кардио и жиросжигание",
-        "Жир уходит от дефицита калорий, а кардио помогает его создать. 2–3 сессии в неделю по 20–40 минут (дорожка, велотренажёр, скакалка) — после силовой или в отдельный день. Ориентир по темпу: можете говорить, но петь уже тяжело."),
-    Tip("📏", "Замеряйте прогресс",
-        "Вес на весах — не вся правда: мышцы тяжелее жира. Раз в 2–4 недели записывайте замеры (талия, грудь, бицепс) в профиле — графики покажут реальные изменения, которых не видно в зеркале изо дня в день."),
-    Tip("⚠️", "Перетренированность",
-        "Постоянная усталость, падение рабочих весов, плохой сон и раздражительность — сигналы, что организм не успевает восстанавливаться. Сделайте лёгкую неделю: те же упражнения, но веса на 40–50% меньше. Рост происходит в отдыхе, а не на тренировке."),
-    Tip("🏁", "Как правильно завершать тренировку",
-        "Не бросайте нагрузку резко. После последнего подхода дайте телу «остыть»: " +
-                "5–10 минут лёгкой активности — спокойная ходьба, велотренажёр на минимальном " +
-                "сопротивлении, лёгкая растяжка проработанных мышц. Резкая остановка после " +
-                "тяжёлой работы — лишний стресс для сердца и сосудов: кровь «застаивается» " +
-                "в мышцах ног, давление падает скачком, отсюда головокружение и тяжесть. " +
-                "Плавное снижение пульса помогает и восстановлению: мышцы лучше очищаются " +
-                "от продуктов работы, следующая тренировка проходит легче."),
-    Tip("😮‍💨", "Запыхался — как восстановить дыхание",
-        "Не садитесь и не ложитесь сразу — продолжайте медленно ходить. Дышите носом, " +
-                "вдох короче выдоха (например, вдох на 3 счёта, выдох на 5–6). Руки лучше " +
-                "держать на голове или на поясе, а не упираться ими в колени — так грудная " +
-                "клетка раскрыта и дышать легче. Обычно пульс заметно опускается за 2–4 минуты. " +
-                "Если одышка не проходит 10+ минут, есть боль в груди, потемнение в глазах или " +
-                "сильное головокружение — это повод прекратить тренировку и обратиться к врачу."),
-    Tip("🥤", "Вода после тренировки",
-        "Нельзя выпивать залпом пол-литра и больше: желудок растягивается, появляется тяжесть, " +
-                "а сердцу тяжелее работать из-за резкого роста объёма жидкости. Пейте небольшими " +
-                "глотками по 100–150 мл каждые 10–15 минут, пока не восстановитесь. " +
-                "Ориентир на восполнение — примерно 1.5 объёма от потерянного с потом " +
-                "(взвесились до и после: минус 0.5 кг ≈ 750 мл в течение пары часов). " +
-                "Вода комнатной температуры переносится лучше ледяной."),
-    Tip("🍽️", "Еда после тренировки",
-        "Сразу после нагрузки организм занят восстановлением, а кровь — в мышцах, не в желудке, " +
-                "поэтому плотно есть в первые минуты некомфортно. Разумная схема: через 20–40 минут — " +
-                "лёгкий перекус с белком и углеводами (творог с фруктом, йогурт, банан + протеин), " +
-                "а полноценный приём пищи — через 1–1.5 часа. Миф про «углеводное окно в 30 минут» " +
-                "давно не подтверждается: важнее общее количество белка и калорий за сутки " +
-                "(ориентир по белку — 1.6–2.2 г на кг веса)."),
-    Tip("🌬️", "Дыхание под нагрузкой",
-        "Усилие — выдох, опускание — вдох. На тяжёлых базовых допустимо короткое натуживание в момент подъёма, но не задерживайте дыхание на всю амплитуду — резко скачет давление.")
-)
-
-private data class ProgramDay(val label: String, val muscleGroup: String, val exercises: List<String>)
-private data class Program(val title: String, val subtitle: String, val days: List<ProgramDay>)
-
-private val PROGRAMS = listOf(
-    Program(
-        title = "3-дневный сплит для начинающих",
-        subtitle = "Всё тело за тренировку, 3 раза в неделю",
-        days = listOf(
-            ProgramDay("День 1", "Ноги", listOf("Приседания со штангой", "Жим ногами", "Румынская тяга")),
-            ProgramDay("День 2", "Спина, бицепс", listOf("Тяга верхнего блока", "Тяга штанги в наклоне", "Подъём штанги на бицепс")),
-            ProgramDay("День 3", "Грудь, плечи, трицепс", listOf("Жим штанги лёжа", "Жим штанги стоя", "Французский жим"))
-        )
-    ),
-    Program(
-        title = "Тренировочный план для новичков",
-        subtitle = "С чего начать и как построить первые недели",
-        days = listOf(
-            ProgramDay("День 1", "Грудь, трицепс", listOf("Жим штанги лёжа", "Жим в тренажёре сидя", "Разгибание рук на блоке")),
-            ProgramDay("День 2", "Спина, бицепс", listOf("Тяга верхнего блока", "Тяга гантели одной рукой", "Подъём гантелей на бицепс")),
-            ProgramDay("День 3", "Ноги, плечи", listOf("Приседания со штангой", "Выпады с гантелями", "Жим гантелей сидя"))
-        )
-    ),
-    Program(
-        title = "Сплит на массу — 3 дня в неделю",
-        subtitle = "Проработка крупных групп мышц по дням",
-        days = listOf(
-            ProgramDay("День 1", "Грудь, ноги", listOf("Жим штанги лёжа", "Приседания со штангой", "Жим ногами")),
-            ProgramDay("День 2", "Спина", listOf("Становая тяга", "Тяга штанги в наклоне", "Подтягивания")),
-            ProgramDay("День 3", "Плечи, руки", listOf("Жим штанги стоя", "Подъём штанги на бицепс", "Французский жим"))
-        )
-    ),
-    Program(
-        title = "Фулбади 2 раза в неделю",
-        subtitle = "Всё тело за тренировку — когда мало времени",
-        days = listOf(
-            ProgramDay("День 1", "Всё тело", listOf("Приседания со штангой", "Жим штанги лёжа", "Тяга верхнего блока", "Планка")),
-            ProgramDay("День 2", "Всё тело", listOf("Румынская тяга", "Жим гантелей сидя", "Горизонтальная тяга блока", "Скручивания"))
-        )
-    ),
-    Program(
-        title = "Уличный воркаут",
-        subtitle = "Турник и брусья — зал не нужен",
-        days = listOf(
-            ProgramDay("День 1", "Улица", listOf("Подтягивания", "Отжимания на брусьях", "Отжимания")),
-            ProgramDay("День 2", "Улица", listOf("Австралийские подтягивания", "Уголок на турнике", "Берпи")),
-            ProgramDay("День 3", "Улица", listOf("Подтягивания", "Присед на одной ноге («пистолетик»)", "Скакалка"))
-        )
-    ),
-    Program(
-        title = "Домашняя без оборудования",
-        subtitle = "Только собственный вес",
-        days = listOf(
-            ProgramDay("День 1", "Дом", listOf("Отжимания", "Приседания без веса", "Планка")),
-            ProgramDay("День 2", "Дом", listOf("Выпады на месте", "Обратные отжимания от стула", "Скалолаз")),
-            ProgramDay("День 3", "Дом", listOf("Берпи", "Ягодичный мостик", "Боковая планка"))
-        )
-    ),
-    Program(
-        title = "Жиросжигание",
-        subtitle = "Кардио 3 раза в неделю",
-        days = listOf(
-            ProgramDay("День 1", "Жиросжигание", listOf("Беговая дорожка", "Скакалка")),
-            ProgramDay("День 2", "Жиросжигание", listOf("Велотренажёр", "Ходьба в горку")),
-            ProgramDay("День 3", "Жиросжигание", listOf("Бег на улице", "Степпер"))
-        )
-    )
-)
+// Советы, программы и легенды лежат в data/model/InfoContent.kt —
+// оттуда же веб-дневник собирает свою копию (tools/собрать_инфо.py).
 
 private data class VideoItem(val title: String, val subtitle: String, val watchUrl: String, val thumbnailUrl: String)
 
@@ -205,7 +92,7 @@ private val VIDEO_SECTIONS = listOf(
         rt("Арнольд: тренировка груди", "Классика от 7× Мистера Олимпия", "cb1bdb52558e62f54e0ff6777b7ac404"),
         rt("Арнольд: программа, день 1", "Как тренировался Железный Арни", "94dc5afcb4af0d0e04f9b93596707899"),
         rt("Арнольд: бицепс и трицепс", "Продвинутая программа рук", "9ee06938966af90ad0fa330b0dc18731"),
-        rt("Крис Бамстед: верх тела", "5× Мистер Олимпия Classic", "245f3dae535f69ffc23aa4808e245cd6"),
+        rt("Крис Бамстед: верх тела", "6× Мистер Олимпия Classic", "245f3dae535f69ffc23aa4808e245cd6"),
         rt("Программа Криса Бамстеда", "Полный разбор на русском", "2ceb2ed3f2aecbc7e574b0571226d706"),
         rt("Бамстед и Дэвид Лейд", "Совместная тренировка в Майами", "a468011ea28e81d106d6219bcb6e294a"),
         rt("Ронни Коулмэн: плечи", "Убойная тренировка плеч", "ff6c33e2883685326360fda06b4ede42"),
@@ -232,108 +119,44 @@ private val VIDEO_SECTIONS = listOf(
 )
 
 // ═══════════════════════════════════════════════════════════════════
-//  ТРЕНИРОВКИ ЛЕГЕНД
-// ═══════════════════════════════════════════════════════════════════
-
-private data class Legend(
-    val emoji: String,
-    val name: String,
-    val tagline: String,
-    val description: String,
-    val workout: List<String>,
-    // Для планирования «попробовать повторить» — как у готовых программ:
-    // группа-ярлык и чистые названия упражнений из библиотеки
-    val muscleGroup: String,
-    val plannableExercises: List<String>
-)
-
-private val LEGENDS = listOf(
-    Legend("🏆", "Арнольд Шварценеггер", "7× Мистер Олимпия",
-        "Тренировался шесть дней в неделю, иногда дважды в день. Фирменный приём — " +
-                "суперсеты грудь+спина: жим лёжа сразу после подтягиваний, без отдыха. " +
-                "Верил в «памп» и полную ментальную концентрацию на рабочей мышце.",
-        listOf(
-            "Жим штанги лёжа — 5×8-12 (суперсет с подтягиваниями)",
-            "Подтягивания — 5× до отказа",
-            "Жим штанги на наклонной скамье — 4×10",
-            "Разводка гантелей лёжа — 4×10",
-            "Пуловер с гантелей — 4×12",
-            "Тяга штанги в наклоне — 4×10"
-        ),
-        muscleGroup = "Грудь, спина",
-        plannableExercises = listOf("Жим штанги лёжа", "Подтягивания", "Жим штанги на наклонной скамье", "Разводка гантелей лёжа", "Пуловер с гантелью", "Тяга штанги в наклоне")
-    ),
-    Legend("👑", "Ганнибал Фор Кинг", "Легенда стрит-воркаута",
-        "Начал тренироваться на улицах Нью-Йорка, потому что не было денег на зал — " +
-                "так родился современный воркаут. Круговой метод: отжимания → турник → " +
-                "брусья без отдыха между упражнениями, 500+ повторений за тренировку.",
-        listOf(
-            "Круги-лесенки без отдыха:",
-            "Отжимания — 30, 29, 28 … 20",
-            "Подтягивания — 10, 9, 8 … 5",
-            "Отжимания на брусьях — 20, 19 … 10",
-            "Подтягивания обратным хватом — 10, 9 … 5",
-            "Итого за тренировку ~580 повторений"
-        ),
-        muscleGroup = "Улица",
-        plannableExercises = listOf("Отжимания", "Подтягивания", "Отжимания на брусьях")
-    ),
-    Legend("💪", "Ронни Коулмэн", "8× Мистер Олимпия",
-        "«Все хотят быть бодибилдерами, но никто не хочет поднимать тяжёлое железо». " +
-                "Тренировался как пауэрлифтер: тяжёлая база — присед 365 кг, " +
-                "жим ногами больше тонны. Yeah buddy! Light weight baby!",
-        listOf(
-            "Приседания со штангой — 5×10-12 (тяжёлые)",
-            "Жим ногами — 4×12",
-            "Выпады с гантелями — 3×12",
-            "Сгибание ног в тренажёре — 4×12",
-            "Румынская тяга — 4×10"
-        ),
-        muscleGroup = "Ноги",
-        plannableExercises = listOf("Приседания со штангой", "Жим ногами", "Выпады с гантелями", "Сгибание ног в тренажёре", "Румынская тяга")
-    ),
-    Legend("🐺", "Дориан Йейтс", "6× Мистер Олимпия",
-        "Метод «кровь и кишки»: после разминочных — одна-единственная рабочая серия " +
-                "до полного отказа. Тренировки короткие (45-50 минут) и предельно тяжёлые. " +
-                "Всю карьеру вёл дневник тренировок — как вы в этом приложении.",
-        listOf(
-            "Тяга верхнего блока — разминка + 1×6-8 до отказа",
-            "Тяга штанги в наклоне — 1×6-8 до отказа",
-            "Тяга гантели одной рукой — 1×8 до отказа",
-            "Гиперэкстензия — 1×10-12",
-            "Становая тяга — 1×6-8"
-        ),
-        muscleGroup = "Спина",
-        plannableExercises = listOf("Тяга верхнего блока", "Тяга штанги в наклоне", "Тяга гантели одной рукой", "Гиперэкстензия", "Становая тяга")
-    ),
-    Legend("🇷🇺", "Андрей Смаев", "МСМК по стритлифтингу",
-        "Русский богатырь из посёлка Сатис. Начинал с дворовых турников, а сейчас " +
-                "подтягивается с дополнительным весом +170 кг и жмёт лёжа за 300 кг. " +
-                "Доказательство, что база и турник с брусьями важнее модных тренажёров.",
-        listOf(
-            "Подтягивания с весом — 5×5 (тяжёлые)",
-            "Отжимания на брусьях с весом — 5×5",
-            "Жим штанги лёжа — 5×5",
-            "Становая тяга — 5×5",
-            "Гиперэкстензия — 3×15",
-            "Плюс объёмный день: 300 подтягиваний + 180 брусья"
-        ),
-        muscleGroup = "Улица",
-        plannableExercises = listOf("Подтягивания", "Отжимания на брусьях", "Жим штанги лёжа", "Становая тяга", "Гиперэкстензия")
-    )
-)
-
-// ═══════════════════════════════════════════════════════════════════
 //  ROOT
 // ═══════════════════════════════════════════════════════════════════
+
+/** Что открыто в «Подробнее». */
+private sealed interface InfoDetail {
+    data class Preset(val group: MuscleGroup, val preset: WorkoutPreset) : InfoDetail
+    data class Program(val program: TrainingProgram) : InfoDetail
+    data class LegendD(val legend: Legend) : InfoDetail
+}
+
+/** Что начать по готовому списку — ждёт подтверждения, если тренировка уже идёт. */
+private data class PendingStart(val title: String, val muscleGroup: String, val exercises: List<String>)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InfoScreen(viewModel: TrainingSessionViewModel) {
     var selectedTab by remember { mutableStateOf(0) }
     var planningDay by remember { mutableStateOf<ProgramDay?>(null) }
+    var detail by remember { mutableStateOf<InfoDetail?>(null) }
+    var pendingStart by remember { mutableStateOf<PendingStart?>(null) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val detailSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val workoutState by viewModel.state.collectAsState()
 
+    /* Начать по готовому списку. Тот же путь, что у своих тренировок:
+       образец без сохранения — название, группа и упражнения. Если
+       тренировка уже идёт, сначала спрашиваем: молча заменить её значило
+       бы потерять записанные подходы. */
+    val startList: (String, String, List<String>) -> Unit = { title, group, exercises ->
+        val p = PendingStart(title, group, exercises)
+        if (workoutState.trainingStarted) {
+            pendingStart = p
+        } else {
+            detail = null
+            viewModel.startMyWorkout(MyWorkout(title = title, muscleGroup = group, exercises = exercises))
+        }
+        Unit
+    }
 
     Column(Modifier.fillMaxSize().background(White)) {
         // Вкладок стало три, и на узком экране они не помещаются в ряд —
@@ -354,11 +177,82 @@ fun InfoScreen(viewModel: TrainingSessionViewModel) {
         HorizontalDivider(color = SoftGray)
 
         when (selectedTab) {
-            0 -> WorkoutsTab(viewModel = viewModel, onPlanDay = { planningDay = it })
-            1 -> TipsTab(onPlanDay = { planningDay = it })
+            0 -> WorkoutsTab(
+                viewModel = viewModel,
+                onPlanDay = { planningDay = it },
+                onDetail = { detail = it }
+            )
+            1 -> TipsTab()
             2 -> VideoTab()
             else -> AboutTab()
         }
+    }
+
+    // ── SHEET: ПОДРОБНЕЕ ────────────────────────────────────────
+    detail?.let { d ->
+        ModalBottomSheet(
+            onDismissRequest = { detail = null },
+            sheetState = detailSheetState,
+            containerColor = if (d is InfoDetail.LegendD) Black else White,
+            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
+        ) {
+            when (d) {
+                is InfoDetail.Preset -> WorkoutDetailContent(
+                    title = d.group.title + " · " + d.preset.title,
+                    subtitle = d.preset.note,
+                    stats = listOf(
+                        "${d.preset.exercises.size}" to "упражн.",
+                        d.preset.volume to "объём"
+                    ),
+                    guide = d.preset.guide,
+                    exercises = d.preset.exercises,
+                    onStart = { startList(d.group.title + " · " + d.preset.title, d.group.title, d.preset.exercises) },
+                    onPlan = {
+                        detail = null
+                        planningDay = ProgramDay(d.preset.title, d.group.title, d.preset.exercises)
+                    }
+                )
+                is InfoDetail.Program -> ProgramDetailContent(
+                    program = d.program,
+                    onPlanDay = { day -> detail = null; planningDay = day }
+                )
+                is InfoDetail.LegendD -> WorkoutDetailContent(
+                    title = d.legend.name,
+                    subtitle = d.legend.tagline,
+                    stats = listOf(
+                        "${d.legend.plannableExercises.size}" to "упражн.",
+                        d.legend.muscleGroup to "группы"
+                    ),
+                    guide = emptyList(),
+                    exercises = d.legend.plannableExercises,
+                    onStart = { startList(d.legend.name, d.legend.muscleGroup, d.legend.plannableExercises) },
+                    onPlan = {
+                        detail = null
+                        planningDay = ProgramDay(d.legend.name, d.legend.muscleGroup, d.legend.plannableExercises)
+                    },
+                    legend = d.legend
+                )
+            }
+        }
+    }
+
+    // ── ТРЕНИРОВКА УЖЕ ИДЁТ ─────────────────────────────────────
+    pendingStart?.let { p ->
+        AlertDialog(
+            onDismissRequest = { pendingStart = null },
+            containerColor = White,
+            title = { Text("Тренировка уже идёт", fontWeight = FontWeight.Bold) },
+            text = { Text("Начать «${p.title}» вместо неё? Записанные в текущей тренировке подходы не сохранятся.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingStart = null; detail = null
+                    viewModel.startMyWorkout(MyWorkout(title = p.title, muscleGroup = p.muscleGroup, exercises = p.exercises))
+                }) { Text("Начать", color = Black, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingStart = null }) { Text("Отмена", color = DarkGray) }
+            }
+        )
     }
 
     // ── SHEET: ЗАПЛАНИРОВАТЬ ДЕНЬ ПРОГРАММЫ ─────────────────────
@@ -533,19 +427,34 @@ private fun AboutRow(emoji: String, title: String, subtitle: String, onClick: ()
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  ВКЛАДКА: ГОТОВЫЕ ТРЕНИРОВКИ ПО ГРУППАМ
+//  ВКЛАДКА: ГОТОВЫЕ ТРЕНИРОВКИ
 //
-//  По пять подборок на каждый блок: масса, сила, рельеф, вариант без
-//  железа и короткая на полчаса. Сначала выбирается блок, потом
-//  подборка — так же, как человек и думает: «сегодня грудь, но времени
-//  мало».
+//  Один ряд кнопок на всё: «Мои», «Программы», блоки мышц и в конце —
+//  «Легенды». По пять подборок на каждый блок: масса, сила, рельеф,
+//  вариант без железа и короткая на полчаса. Сначала выбирается блок,
+//  потом подборка — так же, как человек и думает: «сегодня грудь,
+//  но времени мало».
+//
+//  Программы и легенды раньше лежали в «Советах», в конце длинного
+//  списка, и до них просто не доходили. Им место здесь — среди
+//  тренировок, которые можно начать или поставить в календарь.
 // ═══════════════════════════════════════════════════════════════════
 
+/** Что показано под рядом кнопок. */
+private enum class WorkoutsMode { MINE, PROGRAMS, GROUP, LEGENDS }
+
 @Composable
-private fun WorkoutsTab(viewModel: TrainingSessionViewModel, onPlanDay: (ProgramDay) -> Unit) {
+private fun WorkoutsTab(
+    viewModel: TrainingSessionViewModel,
+    onPlanDay: (ProgramDay) -> Unit,
+    onDetail: (InfoDetail) -> Unit
+) {
     val groups = remember { MuscleGroup.visible.filter { WorkoutPresets.has(it) } }
     var selGroup by remember { mutableStateOf(groups.first()) }
     var expanded by remember { mutableStateOf<Int?>(0) }
+    var mode by remember { mutableStateOf(WorkoutsMode.GROUP) }
+    var expandedProgram by remember { mutableStateOf<Int?>(null) }
+    var expandedLegend by remember { mutableStateOf<Int?>(null) }
     val presets = WorkoutPresets.of(selGroup)
 
     /* Свои тренировки живут здесь, а не среди советов.
@@ -553,7 +462,6 @@ private fun WorkoutsTab(viewModel: TrainingSessionViewModel, onPlanDay: (Program
        должно попадаться на глаза раньше чужого. */
     val myWorkouts by viewModel.myWorkouts.collectAsState()
     var confirmDeleteMy by remember { mutableStateOf<MyWorkout?>(null) }
-    var showMine by remember { mutableStateOf(false) }   // выбрано «Мои»
     LaunchedEffect(Unit) { viewModel.loadMyWorkouts() }
 
     /* Подтверждение удаления.
@@ -578,91 +486,155 @@ private fun WorkoutsTab(viewModel: TrainingSessionViewModel, onPlanDay: (Program
 
     Column(Modifier.fillMaxSize()) {
 
-
-
-        // Полоса блоков — прокручивается вбок, как и в подборе упражнений
+        // Ряд кнопок — прокручивается вбок, как и в подборе упражнений
         LazyRow(
             modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp),
             contentPadding = PaddingValues(horizontal = 20.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            /* «Мои» — такая же кнопка, как группа мышц, и стоит первой.
-               Отдельной полосы-переключателя над рядом не делаем:
-               человек уже привык выбирать здесь, что показать, и своё
-               становится просто ещё одним выбором. Лишний элемент
-               управления над рядом делал бы ту же работу, занимая
-               строку экрана. */
+            /* «Мои» и «Программы» — такие же кнопки, как группа мышц,
+               и стоят первыми: своё и недельные планы ищут чаще всего. */
             item {
-                val on = showMine
-                Text(
-                    if (myWorkouts.isEmpty()) "Мои" else "Мои · ${myWorkouts.size}",
-                    fontSize = 13.sp,
-                    fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
-                    color = if (on) White else DarkGray,
-                    modifier = Modifier
-                        .background(if (on) Black else SoftGray, RoundedCornerShape(20.dp))
-                        .clickable { showMine = true }
-                        .padding(horizontal = 14.dp, vertical = 8.dp)
-                )
+                Chip(if (myWorkouts.isEmpty()) "Мои" else "Мои · ${myWorkouts.size}",
+                    mode == WorkoutsMode.MINE) { mode = WorkoutsMode.MINE }
+            }
+            item {
+                Chip("Программы", mode == WorkoutsMode.PROGRAMS) { mode = WorkoutsMode.PROGRAMS }
             }
             items(groups.size) { i ->
                 val g = groups[i]
-                val on = !showMine && g == selGroup
+                Chip(g.title, mode == WorkoutsMode.GROUP && g == selGroup) {
+                    mode = WorkoutsMode.GROUP; selGroup = g; expanded = 0
+                }
+            }
+            // «Легенды» — в конце и заметнее остальных: чёрная с золотом.
+            item {
+                val on = mode == WorkoutsMode.LEGENDS
                 Text(
-                    g.title,
+                    "🏆 Легенды",
                     fontSize = 13.sp,
-                    fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
-                    color = if (on) White else DarkGray,
+                    fontWeight = FontWeight.Bold,
+                    color = Gold,
                     modifier = Modifier
-                        .background(if (on) Black else SoftGray, RoundedCornerShape(20.dp))
-                        .clickable { showMine = false; selGroup = g; expanded = 0 }
+                        .background(Black, RoundedCornerShape(20.dp))
+                        .then(if (on) Modifier.border(1.5.dp, Gold, RoundedCornerShape(20.dp)) else Modifier)
+                        .clickable { mode = WorkoutsMode.LEGENDS }
                         .padding(horizontal = 14.dp, vertical = 8.dp)
                 )
             }
         }
 
-        if (showMine) {
-            MyWorkoutsList(
+        when (mode) {
+            WorkoutsMode.MINE -> MyWorkoutsList(
                 items = myWorkouts,
                 onStart = { viewModel.startMyWorkout(it) },
                 onDelete = { confirmDeleteMy = it }
             )
-            return@Column
-        }
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 28.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            items(presets.size) { i ->
-                PresetCard(
-                    preset = presets[i],
-                    group = selGroup,
-                    expanded = expanded == i,
-                    onToggle = { expanded = if (expanded == i) null else i },
-                    onPlan = {
-                        onPlanDay(
-                            ProgramDay(
-                                label = presets[i].title,
-                                muscleGroup = selGroup.title,
-                                exercises = presets[i].exercises
+            WorkoutsMode.PROGRAMS -> LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                item {
+                    Text("План на неделю: дни идут по порядку, каждый можно поставить " +
+                            "в календарь кнопкой «+».",
+                        fontSize = 12.sp, color = DarkGray, lineHeight = 17.sp)
+                }
+                items(InfoContent.PROGRAMS.size) { i ->
+                    val program = InfoContent.PROGRAMS[i]
+                    val open = expandedProgram == i
+                    ProgramCard(
+                        program = program,
+                        expanded = open,
+                        onToggle = { expandedProgram = if (open) null else i },
+                        onPlanDay = onPlanDay,
+                        onDetail = { onDetail(InfoDetail.Program(program)) }
+                    )
+                }
+            }
+
+            WorkoutsMode.LEGENDS -> LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                item {
+                    Text("Как тренировались те, на кого равняются. Не методика под копирку, " +
+                            "а разбор подхода — и упражнения, которые можно повторить.",
+                        fontSize = 12.sp, color = DarkGray, lineHeight = 17.sp)
+                }
+                items(InfoContent.LEGENDS.size) { i ->
+                    val legend = InfoContent.LEGENDS[i]
+                    val open = expandedLegend == i
+                    LegendCard(
+                        legend = legend,
+                        expanded = open,
+                        onPlan = { onPlanDay(ProgramDay(legend.name, legend.muscleGroup, legend.plannableExercises)) },
+                        onDetail = { onDetail(InfoDetail.LegendD(legend)) }
+                    ) { expandedLegend = if (open) null else i }
+                }
+            }
+
+            WorkoutsMode.GROUP -> LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 28.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(presets.size) { i ->
+                    PresetCard(
+                        preset = presets[i],
+                        expanded = expanded == i,
+                        onToggle = { expanded = if (expanded == i) null else i },
+                        onPlan = {
+                            onPlanDay(
+                                ProgramDay(
+                                    label = presets[i].title,
+                                    muscleGroup = selGroup.title,
+                                    exercises = presets[i].exercises
+                                )
                             )
-                        )
-                    }
-                )
+                        },
+                        onDetail = { onDetail(InfoDetail.Preset(selGroup, presets[i])) }
+                    )
+                }
             }
         }
     }
 }
 
+/** Кнопка ряда: выбранная — чёрная, остальные — серые. */
+@Composable
+private fun Chip(text: String, on: Boolean, onClick: () -> Unit) {
+    Text(
+        text,
+        fontSize = 13.sp,
+        fontWeight = if (on) FontWeight.Bold else FontWeight.Normal,
+        color = if (on) White else DarkGray,
+        modifier = Modifier
+            .background(if (on) Black else SoftGray, RoundedCornerShape(20.dp))
+            .clickable { onClick() }
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+    )
+}
+
+/** «подробнее →» — как в календаре: золотом и мелко. */
+@Composable
+private fun MoreLink(color: androidx.compose.ui.graphics.Color = Gold, onClick: () -> Unit) {
+    Text(
+        "подробнее →",
+        color = color, fontSize = 12.sp, fontWeight = FontWeight.Medium,
+        modifier = Modifier.clickable { onClick() }.padding(vertical = 6.dp)
+    )
+}
+
 @Composable
 private fun PresetCard(
     preset: WorkoutPreset,
-    group: MuscleGroup,
     expanded: Boolean,
     onToggle: () -> Unit,
-    onPlan: () -> Unit
+    onPlan: () -> Unit,
+    onDetail: () -> Unit
 ) {
     Column(Modifier.fillMaxWidth().background(SoftGray, RoundedCornerShape(14.dp))) {
 
@@ -725,9 +697,13 @@ private fun PresetCard(
                         Text("+", color = White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     }
                 }
-                Spacer(Modifier.height(8.dp))
-                Text("Порядок важен: первым идёт самое тяжёлое движение",
-                    fontSize = 11.sp, color = DarkGray)
+                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("Порядок важен: первым идёт самое тяжёлое движение",
+                        fontSize = 11.sp, color = DarkGray, modifier = Modifier.weight(1f))
+                    Spacer(Modifier.width(10.dp))
+                    MoreLink(onClick = onDetail)
+                }
             }
         }
     }
@@ -833,14 +809,17 @@ private fun plural(n: Int, one: String, few: String, many: String): String {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-//  ВКЛАДКА: СОВЕТЫ + ПРОГРАММЫ (полностью внутри приложения)
+//  ВКЛАДКА: СОВЕТЫ
+//
+//  Только советы: программы и легенды переехали в «Тренировки».
+//  Вторая часть — «Из зала»: то, что рассказывают друг другу у стойки,
+//  но отобранное по исследованиям, а популярные мифы — разобранные.
 // ═══════════════════════════════════════════════════════════════════
 
 @Composable
-private fun TipsTab(onPlanDay: (ProgramDay) -> Unit) {
+private fun TipsTab() {
     var expandedTip by remember { mutableStateOf<Int?>(null) }
-    var expandedProgram by remember { mutableStateOf<Int?>(null) }
-    var expandedLegend by remember { mutableStateOf<Int?>(null) }
+    var expandedGym by remember { mutableStateOf<Int?>(null) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -849,37 +828,25 @@ private fun TipsTab(onPlanDay: (ProgramDay) -> Unit) {
     ) {
         item { SectionLabel("СОВЕТЫ") }
 
-        items(TIPS.size) { index ->
-            val tip = TIPS[index]
+        items(InfoContent.TIPS.size) { index ->
+            val tip = InfoContent.TIPS[index]
             val expanded = expandedTip == index
             TipCard(tip, expanded) { expandedTip = if (expanded) null else index }
         }
 
         item { Spacer(Modifier.height(6.dp)) }
-        item { SectionLabel("ГОТОВЫЕ ПРОГРАММЫ") }
-
-        items(PROGRAMS.size) { index ->
-            val program = PROGRAMS[index]
-            val expanded = expandedProgram == index
-            ProgramCard(
-                program = program,
-                expanded = expanded,
-                onToggle = { expandedProgram = if (expanded) null else index },
-                onPlanDay = onPlanDay
-            )
+        item { SectionLabel("ИЗ ЗАЛА") }
+        item {
+            Text("Неофициально, но проверено исследованиями. Это не медицинский совет: " +
+                    "при болезнях — сначала к врачу.",
+                fontSize = 12.sp, color = DarkGray, lineHeight = 17.sp,
+                modifier = Modifier.padding(horizontal = 4.dp))
         }
 
-        item { Spacer(Modifier.height(6.dp)) }
-        item { SectionLabel("ТРЕНИРОВКИ ЛЕГЕНД") }
-
-        items(LEGENDS.size) { index ->
-            val legend = LEGENDS[index]
-            val expanded = expandedLegend == index
-            LegendCard(
-                legend = legend,
-                expanded = expanded,
-                onPlan = { onPlanDay(ProgramDay(legend.name, legend.muscleGroup, legend.plannableExercises)) }
-            ) { expandedLegend = if (expanded) null else index }
+        items(InfoContent.GYM_TIPS.size) { index ->
+            val tip = InfoContent.GYM_TIPS[index]
+            val expanded = expandedGym == index
+            TipCard(tip, expanded) { expandedGym = if (expanded) null else index }
         }
 
         // ── ВЕРСИЯ ПРИЛОЖЕНИЯ ────────────────────────────────────────
@@ -906,7 +873,7 @@ private fun TipsTab(onPlanDay: (ProgramDay) -> Unit) {
 }
 
 @Composable
-private fun TipCard(tip: Tip, expanded: Boolean, onClick: () -> Unit) {
+private fun TipCard(tip: TrainingTip, expanded: Boolean, onClick: () -> Unit) {
     Column(
         modifier = Modifier.fillMaxWidth().background(SoftGray, RoundedCornerShape(14.dp))
             .clickable { onClick() }.padding(horizontal = 14.dp, vertical = 12.dp)
@@ -932,10 +899,11 @@ private fun TipCard(tip: Tip, expanded: Boolean, onClick: () -> Unit) {
 
 @Composable
 private fun ProgramCard(
-    program: Program,
+    program: TrainingProgram,
     expanded: Boolean,
     onToggle: () -> Unit,
-    onPlanDay: (ProgramDay) -> Unit
+    onPlanDay: (ProgramDay) -> Unit,
+    onDetail: () -> Unit
 ) {
     Column(Modifier.fillMaxWidth().background(SoftGray, RoundedCornerShape(14.dp))) {
 
@@ -946,7 +914,12 @@ private fun ProgramCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(program.title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Black)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(program.title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Black,
+                        modifier = Modifier.weight(1f, fill = false))
+                    Spacer(Modifier.width(8.dp))
+                    Text("${program.days.size} дн.", fontSize = 11.sp, color = DarkGray)
+                }
                 Spacer(Modifier.height(3.dp))
                 Text(program.subtitle, fontSize = 12.sp, color = DarkGray)
             }
@@ -960,6 +933,9 @@ private fun ProgramCard(
                 program.days.forEachIndexed { idx, day ->
                     ProgramDayRow(day = day, onPlanClick = { onPlanDay(day) })
                     if (idx < program.days.lastIndex) Spacer(Modifier.height(10.dp))
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    MoreLink(onClick = onDetail)
                 }
             }
         }
@@ -1190,7 +1166,13 @@ private fun SectionLabel(title: String) {
 // ═══════════════════════════════════════════════════════════════════
 
 @Composable
-private fun LegendCard(legend: Legend, expanded: Boolean, onPlan: () -> Unit, onClick: () -> Unit) {
+private fun LegendCard(
+    legend: Legend,
+    expanded: Boolean,
+    onPlan: () -> Unit,
+    onDetail: () -> Unit,
+    onClick: () -> Unit
+) {
     Column(
         modifier = Modifier.fillMaxWidth().background(Black, RoundedCornerShape(14.dp))
             .clickable { onClick() }.padding(horizontal = 14.dp, vertical = 12.dp)
@@ -1200,7 +1182,7 @@ private fun LegendCard(legend: Legend, expanded: Boolean, onPlan: () -> Unit, on
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(legend.name, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = White)
-                Text(legend.tagline, fontSize = 11.sp, color = White.copy(alpha = 0.6f))
+                Text(legend.tagline, fontSize = 11.sp, color = Gold)
             }
             // «+» — запланировать (попробовать повторить) тренировку легенды.
             // Своя clickable-зона, тап по ней не разворачивает карточку.
@@ -1216,6 +1198,15 @@ private fun LegendCard(legend: Legend, expanded: Boolean, onPlan: () -> Unit, on
             Spacer(Modifier.width(10.dp))
             Text(if (expanded) "▲" else "▼", fontSize = 11.sp, color = White.copy(alpha = 0.6f))
         }
+        // Цитата — сразу под именем, даже в свёрнутой карточке: ради неё
+        // карточку и открывают.
+        legend.quote?.let { q ->
+            Spacer(Modifier.height(8.dp))
+            Text("«$q»", fontSize = 12.sp, color = White.copy(alpha = 0.8f), lineHeight = 17.sp,
+                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                maxLines = if (expanded) Int.MAX_VALUE else 2,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+        }
         if (expanded) {
             Spacer(Modifier.height(10.dp))
             Text(legend.description, fontSize = 12.sp, color = White.copy(alpha = 0.85f), lineHeight = 18.sp)
@@ -1228,6 +1219,9 @@ private fun LegendCard(legend: Legend, expanded: Boolean, onPlan: () -> Unit, on
                     Spacer(Modifier.width(8.dp))
                     Text(line, fontSize = 12.sp, color = White, lineHeight = 17.sp)
                 }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                MoreLink(onClick = onDetail)
             }
         }
     }
