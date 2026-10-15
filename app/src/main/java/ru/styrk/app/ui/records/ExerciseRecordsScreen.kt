@@ -28,6 +28,7 @@ import ru.styrk.app.ui.common.SetFormat
 import ru.styrk.app.ui.common.AllRecordsButton
 import ru.styrk.app.ui.common.FullHistoryChart
 import ru.styrk.app.ui.common.SimpleLineChart
+import ru.styrk.app.ui.common.ExerciseHowToSection
 import ru.styrk.app.viewmodel.TrainingSessionViewModel
 import ru.styrk.app.ui.theme.Black
 import ru.styrk.app.ui.theme.DarkGray
@@ -108,9 +109,23 @@ fun ExerciseRecordsScreen(
         .filter { it.exerciseName in PRIORITY_EXERCISES && matchesRecord(it, searchQuery, customExercises) }
         .sortedBy { PRIORITY_EXERCISES.indexOf(it.exerciseName) }
 
+    /* «Другие рекорды» — сверху то, что делали последним (R184).
+       Раньше сортировка шла по дате рекорда: упражнение, которое
+       делаешь каждую неделю, но без нового рекорда, уезжало вниз,
+       под то, что делал один раз полгода назад. Журнал отсортирован
+       от новых к старым, поэтому первая встреча упражнения — самая
+       свежая. При равенстве — по дате рекорда. */
+    val lastDone = remember(completedWorkouts) {
+        val m = HashMap<String, java.time.LocalDateTime>()
+        for (w in completedWorkouts) for (e in w.exercises) m.putIfAbsent(e.name, w.dateTime)
+        m
+    }
     val otherRecords = records.values
         .filter { it.exerciseName !in PRIORITY_EXERCISES && matchesRecord(it, searchQuery, customExercises) }
-        .sortedByDescending { it.recordDate }
+        .sortedWith(
+            compareByDescending<ExerciseHistory> { lastDone[it.exerciseName] ?: it.recordDate }
+                .thenByDescending { it.recordDate }
+        )
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -333,6 +348,18 @@ fun ExerciseRecordsScreen(
                         }
                     }
                 }
+
+                // ===== КАК ВЫПОЛНЯТЬ (R184) =====
+                // Свёрнутый блок с гифкой и техникой — в самом низу, чтобы
+                // не мешать графикам. Для своих упражнений — своё описание
+                // и снимок.
+                val own = customExercises.find { it.name == rec.exerciseName }
+                Spacer(Modifier.height(12.dp))
+                ExerciseHowToSection(
+                    name = rec.exerciseName,
+                    ownDescription = own?.description,
+                    ownPhotoPath = own?.photoPath
+                )
             }
         }
     }

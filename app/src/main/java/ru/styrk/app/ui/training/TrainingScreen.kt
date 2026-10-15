@@ -728,7 +728,15 @@ private fun InlineExerciseBlock(
     // ИМЕНИ — это общая история упражнения, а не конкретной
     // карточки) — нужны для "превью" ещё не введённых сегодня
     // подходов и для подсказки в полях ввода.
-    val previousSets = remember(exercise.name) {
+    //
+    // ИСПРАВЛЕНО (R184): ключ — ещё и сам журнал. Раньше список
+    // запоминался один раз по имени упражнения. Если приложение
+    // поднималось с нуля посреди тренировки (вход через уведомление),
+    // карточка рисовалась раньше, чем журнал успевал загрузиться из
+    // базы, — и запоминала пустоту. Прошлые подходы появлялись, только
+    // когда карточка пересоздавалась при переходе по вкладкам.
+    val completedWorkouts by viewModel.completedWorkouts.collectAsState()
+    val previousSets = remember(exercise.name, completedWorkouts) {
         val list = mutableListOf<ru.styrk.app.data.model.WorkoutSet>()
         var i = 0
         while (true) {
@@ -768,16 +776,24 @@ private fun InlineExerciseBlock(
 
        Откуда берётся, по порядку:
          1. план тренера на этот подход;
-         2. тот же подход прошлой тренировки;
-         3. последний подход сегодня — если сегодня делаете больше
+         2. для «вес × повторы» — САМЫЙ ТЯЖЁЛЫЙ подход из сегодняшних
+            и прошлой тренировки, при равном весе — с бо́льшими повторами
+            (R184). Раньше брался тот же по счёту подход прошлого раза:
+            сделал сегодня 15 × 10, а третьему подходу подсказывало
+            прошлые 12,5 × 12 — шаг назад;
+         3. тот же подход прошлой тренировки;
+         4. последний подход сегодня — если сегодня делаете больше
             подходов, чем в прошлый раз;
-         4. последний подход прошлой тренировки.
+         5. последний подход прошлой тренировки.
+       Пункты 3–5 остались для всего, где веса нет: свой вес, время,
+       дистанция, кардио.
        При правке уже записанного подхода подсказки нет: там в полях
        стоят его собственные числа. */
     val hint: ru.styrk.app.data.model.WorkoutSet? =
         if (addingSet && editingIndex == null) {
             val i = exercise.sets.size
             planSets.getOrNull(i)
+                ?: heaviestSet(exercise.measureType, exercise.sets + previousSets)
                 ?: previousSets.getOrNull(i)
                 ?: exercise.sets.lastOrNull()
                 ?: previousSets.lastOrNull()
@@ -1182,3 +1198,18 @@ private fun SetField(
         )
     )
 }
+/**
+ * Самый тяжёлый подход для подсказки в полях (R184).
+ *
+ * Только для «вес × повторы» и только среди подходов с весом: у своего
+ * веса, времени и дистанции «тяжелее» не означает ничего, там подсказка
+ * идёт по-старому — тем же по счёту подходом прошлого раза.
+ * При равном весе берётся подход с бо́льшим числом повторов.
+ */
+private fun heaviestSet(
+    type: MeasureType,
+    sets: List<ru.styrk.app.data.model.WorkoutSet>
+): ru.styrk.app.data.model.WorkoutSet? =
+    if (type != MeasureType.WEIGHT_REPS) null
+    else sets.filter { it.weight > 0f }
+        .maxWithOrNull(compareBy<ru.styrk.app.data.model.WorkoutSet>({ it.weight }, { it.reps }))

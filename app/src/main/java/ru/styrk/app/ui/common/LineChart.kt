@@ -41,6 +41,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
@@ -370,6 +372,68 @@ internal fun axisWidth(scale: Scale, tm: TextMeasurer): Float {
 
 // ═══════════════════ РИСОВАНИЕ ═══════════════════
 
+/**
+ * Насколько скруглять линию графика (R184): 0 — прежние прямые отрезки,
+ * 1 — полная кривая. Сравнивали 0; 0,35; 0,6 и 1 на прогрессе веса,
+ * объёме и графике из трёх точек: при 1 линия начинает волниться между
+ * точками, при 0,35 почти не отличается от прямых. 0,5 — углы мягкие,
+ * а форма та же, что у данных.
+ */
+private const val SMOOTHING = 0.5f
+
+/**
+ * Плавная линия ровно через все точки.
+ *
+ * Монотонная кубическая кривая (метод Фрича — Карлсона): между двумя
+ * точками она не выходит за их значения. Ровный участок остаётся
+ * ровным, а пик не «перелетает» выше настоящего рекорда — обычное
+ * сглаживание рисовало бы вес, которого человек не поднимал.
+ *
+ * startWithMove = false — продолжить уже начатый путь (для заливки,
+ * которая начинается от нижнего края).
+ */
+private fun Path.smoothThrough(xs: FloatArray, ys: FloatArray, startWithMove: Boolean) {
+    val n = xs.size
+    if (n == 0) return
+    if (startWithMove) moveTo(xs[0], ys[0]) else lineTo(xs[0], ys[0])
+    if (n < 3) {
+        for (i in 1 until n) lineTo(xs[i], ys[i])
+        return
+    }
+    // Наклон каждого отрезка и касательная в каждой точке
+    val d = FloatArray(n - 1) { (ys[it + 1] - ys[it]) / (xs[it + 1] - xs[it]) }
+    val m = FloatArray(n)
+    m[0] = d[0]
+    m[n - 1] = d[n - 2]
+    for (i in 1 until n - 1) {
+        // Точка-вершина (рост сменился спадом) — касательная горизонтальна
+        m[i] = if (d[i - 1] * d[i] <= 0f) 0f else (d[i - 1] + d[i]) / 2f
+    }
+    for (i in 0 until n - 1) {
+        if (d[i] == 0f) { m[i] = 0f; m[i + 1] = 0f; continue }
+        val a = m[i] / d[i]
+        val b = m[i + 1] / d[i]
+        val sum = a * a + b * b
+        if (sum > 9f) {
+            val t = 3f / kotlin.math.sqrt(sum)
+            m[i] = t * a * d[i]
+            m[i + 1] = t * b * d[i]
+        }
+    }
+    for (i in 0 until n - 1) {
+        val dx = xs[i + 1] - xs[i]
+        // Смешиваем касательную кривой с наклоном самого отрезка:
+        // при SMOOTHING = 0 получилась бы прямая.
+        val s0 = d[i] + SMOOTHING * (m[i] - d[i])
+        val s1 = d[i] + SMOOTHING * (m[i + 1] - d[i])
+        cubicTo(
+            xs[i] + dx / 3f, ys[i] + s0 * dx / 3f,
+            xs[i + 1] - dx / 3f, ys[i + 1] - s1 * dx / 3f,
+            xs[i + 1], ys[i + 1]
+        )
+    }
+}
+
 private fun DrawScope.drawChart(
     values: List<Float>,
     scale: Scale,
@@ -416,10 +480,13 @@ private fun DrawScope.drawChart(
     //
     // Затемнение идёт сверху вниз и растворяется у нижнего края: сплошная
     // подложка спорила бы с подписями оси и с самой линией.
+    // Линия и заливка идут по одной и той же плавной кривой (R184).
+    val xs = FloatArray(values.size) { xOf(it) }
+    val ys = FloatArray(values.size) { yOf(values[it]) }
     val area = Path()
-    area.moveTo(xOf(0), h)
-    values.forEachIndexed { i, v -> area.lineTo(xOf(i), yOf(v)) }
-    area.lineTo(xOf(values.size - 1), h)
+    area.moveTo(xs[0], h)
+    area.smoothThrough(xs, ys, startWithMove = false)
+    area.lineTo(xs[xs.size - 1], h)
     area.close()
     drawPath(
         area,
@@ -431,11 +498,11 @@ private fun DrawScope.drawChart(
     )
 
     // Линия
-    val path = Path()
-    values.forEachIndexed { i, v ->
-        if (i == 0) path.moveTo(xOf(i), yOf(v)) else path.lineTo(xOf(i), yOf(v))
-    }
-    drawPath(path, color = Black, style = Stroke(width = 2.dp.toPx()))
+    val path = Path().apply { smoothThrough(xs, ys, startWithMove = true) }
+    drawPath(
+        path, color = Black,
+        style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+    )
 
     // Точки
     values.forEachIndexed { i, v ->

@@ -113,7 +113,7 @@ object ExerciseMuscles {
         "Гакк-приседания" to listOf(Muscle.QUADS, Muscle.GLUTES),
 
         // ── ПЛЕЧИ ──
-        "Жим в Смите стоя" to listOf(Muscle.DELT_FRONT, Muscle.DELT_SIDE, Muscle.TRICEPS),
+        "Жим в Смите сидя" to listOf(Muscle.DELT_FRONT, Muscle.DELT_SIDE, Muscle.TRICEPS),
         "Жим в тренажёре под наклоном" to listOf(Muscle.DELT_FRONT, Muscle.TRICEPS),
         "Шраги с гантелями (трапеция)" to listOf(Muscle.TRAPS),
         "Подъём руки перед собой на блоке" to listOf(Muscle.DELT_FRONT),
@@ -282,7 +282,7 @@ object ExerciseMuscles {
         // ── ТРИЦЕПС ──
         "Французский жим сидя со штангой" to listOf(Muscle.TRICEPS),
         "Разгибание рук из-за головы с канатом" to listOf(Muscle.TRICEPS),
-        "Отжимания узким хватом от пола" to listOf(Muscle.TRICEPS, Muscle.CHEST, Muscle.CORE),
+        "Отжимания узким хватом с колен" to listOf(Muscle.TRICEPS, Muscle.CHEST, Muscle.CORE),
         "Жим узким хватом в Смите" to listOf(Muscle.TRICEPS, Muscle.CHEST),
         "Разгибание рук в тренажёре" to listOf(Muscle.TRICEPS),
         "Кикбэк на блоке" to listOf(Muscle.TRICEPS),

@@ -190,7 +190,7 @@ fun RankBoard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f)) {
-                Text("Разряды по движениям", color = Black,
+                Text("Разряды по упражнениям", color = Black,
                     fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 Text(
                     if (open) "свернуть" else inside,
@@ -266,7 +266,7 @@ private fun fedResults(
     }
 
 /**
- * Свёрнутый список «Соревнования федераций» — внутри «Разрядов по движениям»,
+ * Свёрнутый список «Соревнования федераций» — внутри «Разрядов по упражнениям»,
  * а без троеборья — сам по себе.
  */
 @Composable

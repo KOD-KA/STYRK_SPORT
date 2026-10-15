@@ -91,7 +91,7 @@ object ExerciseLibrary {
         ExerciseCatalog("Наклоны со штангой на плечах",   MuscleGroup.LEGS),
 
         // ===== ПЛЕЧИ =====
-        ExerciseCatalog("Жим в Смите стоя",            MuscleGroup.SHOULDERS),
+        ExerciseCatalog("Жим в Смите сидя",            MuscleGroup.SHOULDERS),
         ExerciseCatalog("Жим в тренажёре под наклоном", MuscleGroup.SHOULDERS),
         ExerciseCatalog("Шраги с гантелями (трапеция)",    MuscleGroup.SHOULDERS),
         ExerciseCatalog("Подъём руки перед собой на блоке", MuscleGroup.SHOULDERS),
@@ -154,7 +154,7 @@ object ExerciseLibrary {
         // ДОБАВЛЕНО (библиотека 244)
         ExerciseCatalog("Французский жим сидя со штангой",       MuscleGroup.TRICEPS),
         ExerciseCatalog("Разгибание рук из-за головы с канатом", MuscleGroup.TRICEPS),
-        ExerciseCatalog("Отжимания узким хватом от пола",        MuscleGroup.TRICEPS, MeasureType.REPS),
+        ExerciseCatalog("Отжимания узким хватом с колен",        MuscleGroup.TRICEPS, MeasureType.REPS),
         ExerciseCatalog("Жим узким хватом в Смите",              MuscleGroup.TRICEPS),
         ExerciseCatalog("Разгибание рук в тренажёре",            MuscleGroup.TRICEPS),
         ExerciseCatalog("Кикбэк на блоке",                       MuscleGroup.TRICEPS),

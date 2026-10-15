@@ -19,6 +19,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import ru.styrk.app.ui.common.ExercisePhoto
+import ru.styrk.app.data.model.ExerciseRenames
 
 /**
  * Экспорт/импорт всех данных приложения в JSON.
@@ -239,8 +240,10 @@ object BackupManager {
     // ==================== ИМПОРТ ====================
 
     suspend fun importJson(db: WorkoutDatabase, json: String, filesDir: File? = null) = withContext(Dispatchers.IO) {
+        // Бэкап мог быть сделан до переименования упражнений — приводим
+        // имена к нынешним, иначе у упражнения стало бы две истории.
         val root = try {
-            JSONObject(json)
+            JSONObject(ExerciseRenames.applyToJson(json))
         } catch (_: Exception) {
             throw IllegalArgumentException("Файл не является бэкапом STYRK")
         }

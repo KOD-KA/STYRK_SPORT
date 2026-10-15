@@ -148,61 +148,70 @@ val MIGRATION_5_6 = object : Migration(5, 6) {
  */
 val MIGRATION_6_7 = object : Migration(6, 7) {
     override fun migrate(db: SupportSQLiteDatabase) {
-        ExerciseRenames.MAP.forEach { (old, new) ->
-            val args = arrayOf<Any>(new, old)
-
-            // ── записи, где имя не ключ: простое переименование ──
-            db.execSQL(
-                "UPDATE completed_workout_exercises SET exerciseName = ? WHERE exerciseName = ?", args)
-            db.execSQL(
-                "UPDATE completed_workout_sets SET exerciseName = ? WHERE exerciseName = ?", args)
-            db.execSQL(
-                "UPDATE planned_exercises SET exerciseName = ? WHERE exerciseName = ?", args)
-            db.execSQL(
-                "UPDATE my_workout_exercises SET exerciseName = ? WHERE exerciseName = ?", args)
-
-            /* ── рекорды: имя здесь первичный ключ ──
-               Шаг 1. Новая строка уже есть и она не хуже старой —
-                      старая больше не нужна.
-               Шаг 2. Старая уцелела, значит она была лучше, —
-                      убираем новую, чтобы освободить ключ.
-               Шаг 3. Переименовываем то, что осталось.
-               Для упражнений без веса (повторы, время, расстояние)
-               maxWeight у обоих нулевой, и шаг 1 оставляет новую —
-               это верно: она свежее. */
-            db.execSQL(
-                "DELETE FROM exercise_history WHERE exerciseName = ? AND EXISTS (" +
-                    "SELECT 1 FROM exercise_history h WHERE h.exerciseName = ? " +
-                    "AND h.maxWeight >= (SELECT maxWeight FROM exercise_history " +
-                    "WHERE exerciseName = ?))",
-                arrayOf<Any>(old, new, old))
-            db.execSQL(
-                "DELETE FROM exercise_history WHERE exerciseName = ? AND EXISTS (" +
-                    "SELECT 1 FROM exercise_history WHERE exerciseName = ?)",
-                arrayOf<Any>(new, old))
-            db.execSQL(
-                "UPDATE exercise_history SET exerciseName = ? WHERE exerciseName = ?", args)
-
-            /* ── незаконченная тренировка ──
-               Она лежит одной строкой JSON, разбирать её здесь нечем.
-               Меняем имя вместе с кавычками — так заменяется ровно
-               целое название, а не кусок соседнего. */
-            db.execSQL(
-                "UPDATE in_progress_workout SET exercisesJson = " +
-                    "replace(exercisesJson, '\"' || ? || '\"', '\"' || ? || '\"')",
-                args.reversedArray())
-        }
-
-        /* Планы и шаблоны помечаем изменёнными.
-
-           Их список упражнений отдельно не синхронизируется — он едет
-           внутри самой записи. Не пометить значит оставить на сервере
-           старые имена в планах: сервер считал бы их незатронутыми
-           и при первом же обмене вернул бы обратно. */
-        val now = System.currentTimeMillis()
-        db.execSQL("UPDATE planned_workouts SET updatedAt = ?, dirty = 1", arrayOf<Any>(now))
-        db.execSQL("UPDATE my_workouts SET updatedAt = ?, dirty = 1", arrayOf<Any>(now))
+        renameExercises(db, ExerciseRenames.MAP)
     }
+}
+
+/**
+ * Перенос записей со старых названий на новые — общий для переходов
+ * 6→7 и 8→9. Вынесен из 6→7 без изменений: что и в каком порядке
+ * переименовывается, осталось ровно тем же.
+ */
+private fun renameExercises(db: SupportSQLiteDatabase, map: List<Pair<String, String>>) {
+    map.forEach { (old, new) ->
+        val args = arrayOf<Any>(new, old)
+
+        // ── записи, где имя не ключ: простое переименование ──
+        db.execSQL(
+            "UPDATE completed_workout_exercises SET exerciseName = ? WHERE exerciseName = ?", args)
+        db.execSQL(
+            "UPDATE completed_workout_sets SET exerciseName = ? WHERE exerciseName = ?", args)
+        db.execSQL(
+            "UPDATE planned_exercises SET exerciseName = ? WHERE exerciseName = ?", args)
+        db.execSQL(
+            "UPDATE my_workout_exercises SET exerciseName = ? WHERE exerciseName = ?", args)
+
+        /* ── рекорды: имя здесь первичный ключ ──
+           Шаг 1. Новая строка уже есть и она не хуже старой —
+                  старая больше не нужна.
+           Шаг 2. Старая уцелела, значит она была лучше, —
+                  убираем новую, чтобы освободить ключ.
+           Шаг 3. Переименовываем то, что осталось.
+           Для упражнений без веса (повторы, время, расстояние)
+           maxWeight у обоих нулевой, и шаг 1 оставляет новую —
+           это верно: она свежее. */
+        db.execSQL(
+            "DELETE FROM exercise_history WHERE exerciseName = ? AND EXISTS (" +
+                "SELECT 1 FROM exercise_history h WHERE h.exerciseName = ? " +
+                "AND h.maxWeight >= (SELECT maxWeight FROM exercise_history " +
+                "WHERE exerciseName = ?))",
+            arrayOf<Any>(old, new, old))
+        db.execSQL(
+            "DELETE FROM exercise_history WHERE exerciseName = ? AND EXISTS (" +
+                "SELECT 1 FROM exercise_history WHERE exerciseName = ?)",
+            arrayOf<Any>(new, old))
+        db.execSQL(
+            "UPDATE exercise_history SET exerciseName = ? WHERE exerciseName = ?", args)
+
+        /* ── незаконченная тренировка ──
+           Она лежит одной строкой JSON, разбирать её здесь нечем.
+           Меняем имя вместе с кавычками — так заменяется ровно
+           целое название, а не кусок соседнего. */
+        db.execSQL(
+            "UPDATE in_progress_workout SET exercisesJson = " +
+                "replace(exercisesJson, '\"' || ? || '\"', '\"' || ? || '\"')",
+            args.reversedArray())
+    }
+
+    /* Планы и шаблоны помечаем изменёнными.
+
+       Их список упражнений отдельно не синхронизируется — он едет
+       внутри самой записи. Не пометить значит оставить на сервере
+       старые имена в планах: сервер считал бы их незатронутыми
+       и при первом же обмене вернул бы обратно. */
+    val now = System.currentTimeMillis()
+    db.execSQL("UPDATE planned_workouts SET updatedAt = ?, dirty = 1", arrayOf<Any>(now))
+    db.execSQL("UPDATE my_workouts SET updatedAt = ?, dirty = 1", arrayOf<Any>(now))
 }
 
 /**
@@ -220,6 +229,20 @@ val MIGRATION_7_8 = object : Migration(7, 8) {
     }
 }
 
+/**
+ * Версия 9: названия подогнаны под ролики (ExerciseRenames.MAP_9).
+ *
+ * «Жим в Смите стоя» → «Жим в Смите сидя», «Отжимания узким хватом
+ * от пола» → «Отжимания узким хватом с колен». Схема не меняется —
+ * переносятся только записи, тем же способом, что в 6→7: история,
+ * подходы, планы, образцы, рекорды и незаконченная тренировка.
+ */
+val MIGRATION_8_9 = object : Migration(8, 9) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        renameExercises(db, ExerciseRenames.MAP_9)
+    }
+}
+
 /** Все переходы по порядку. Передаётся в Room при сборке базы. */
 val ALL_MIGRATIONS = arrayOf(
     MIGRATION_1_2,
@@ -228,5 +251,6 @@ val ALL_MIGRATIONS = arrayOf(
     MIGRATION_4_5,
     MIGRATION_5_6,
     MIGRATION_6_7,
-    MIGRATION_7_8
+    MIGRATION_7_8,
+    MIGRATION_8_9
 )

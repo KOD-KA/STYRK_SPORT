@@ -62,7 +62,9 @@ import ru.styrk.app.data.local.entity.*
     // Версия 7: переезд на новые названия упражнений (ExerciseRenames).
     // Версия 6: пол в профиле — для разрядных таблиц ЕВСК.
     // Версия 8: план тренера по подходам (planned_exercises.targetPlan).
-    version = 8,
+    // Версия 9: названия подогнаны под ролики (ExerciseRenames.MAP_9),
+    // схема та же — переносятся только записи.
+    version = 9,
     exportSchema = true
 )
 abstract class WorkoutDatabase : RoomDatabase() {

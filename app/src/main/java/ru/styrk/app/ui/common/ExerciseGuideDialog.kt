@@ -236,6 +236,106 @@ fun ExerciseGuideDialog(
 }
 
 /**
+ * Свёрнутый блок «Как выполнять»: гифка, мышцы и техника (R184).
+ *
+ * Стоит внизу окна прогресса в «Рекордах». Свёрнут по умолчанию:
+ * человек открыл рекорд ради графиков и чисел, а разбор техники нужен
+ * не каждый раз — развёрнутый, он отодвигал бы главное вниз.
+ *
+ * Содержимое то же, что в карточке упражнения во время тренировки, —
+ * своё описание и снимок первыми, потом гифка, мышцы и техника, — чтобы
+ * одно и то же упражнение не выглядело в двух местах по-разному.
+ * Если сказать нечего, блока нет вовсе: пустая шторка хуже никакой.
+ */
+@Composable
+fun ExerciseHowToSection(
+    name: String,
+    ownDescription: String?,
+    ownPhotoPath: String?
+) {
+    val guide = ExerciseGuide.of(name)
+    val muscles = ExerciseMuscles.of(name)
+    val hasGif = guide != null && guide.hasGif
+    val hasTech = guide != null && guide.technique.isNotEmpty()
+    if (!hasGif && !hasTech && muscles.isEmpty() &&
+        ownDescription.isNullOrBlank() && ownPhotoPath == null) return
+
+    var open by remember(name) { mutableStateOf(false) }
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(SoftGray)
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clickable { open = !open }
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("КАК ВЫПОЛНЯТЬ", color = Black, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    if (open) "свернуть" else
+                        listOfNotNull(
+                            if (hasGif) "анимация" else null,
+                            if (muscles.isNotEmpty()) "мышцы" else null,
+                            if (hasTech || !ownDescription.isNullOrBlank()) "техника" else null
+                        ).joinToString(", "),
+                    color = DarkGray, fontSize = 11.sp, lineHeight = 15.sp
+                )
+            }
+            Text(if (open) "⌃" else "⌄", color = DarkGray, fontSize = 16.sp)
+        }
+        if (open) {
+            Column(Modifier.padding(start = 14.dp, end = 14.dp, bottom = 14.dp)) {
+                if (ownPhotoPath != null) {
+                    AsyncImage(
+                        model = java.io.File(ownPhotoPath),
+                        contentDescription = name,
+                        contentScale = ContentScale.FillWidth,
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
+                if (!ownDescription.isNullOrBlank()) {
+                    Text(ownDescription, color = Black, fontSize = 13.sp, lineHeight = 18.sp)
+                    Spacer(Modifier.height(12.dp))
+                }
+                if (hasGif) {
+                    // Белая подложка: гифки нарисованы на белом, и на сером
+                    // фоне блока край картинки читался бы как рамка.
+                    AsyncImage(
+                        model = ExerciseGuide.assetUri(guide!!.gifAsset),
+                        contentDescription = name,
+                        contentScale = ContentScale.FillWidth,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(White)
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
+                if (muscles.isNotEmpty()) {
+                    MuscleTags(muscles)
+                    Spacer(Modifier.height(12.dp))
+                }
+                if (hasTech) {
+                    guide!!.technique.forEach { tip ->
+                        Row(verticalAlignment = Alignment.Top, modifier = Modifier.padding(vertical = 2.dp)) {
+                            Text("•", color = Gold, fontSize = 13.sp)
+                            Spacer(Modifier.width(8.dp))
+                            Text(tip, color = Black, fontSize = 13.sp, lineHeight = 18.sp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
  * Хештеги работающих мышц.
  *
  * Именно мышц, а не блоков экрана выбора: «Улица и дом» — это полка,
