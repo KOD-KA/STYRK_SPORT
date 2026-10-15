@@ -662,6 +662,13 @@ class TrainingSessionViewModel(private val database: WorkoutDatabase) : ViewMode
             if (usedGroups.isNotEmpty()) usedGroups.joinToString(", ") { it.title }
             else s.selectedMuscleGroup?.title ?: "Не выбрано"
 
+        /* Опознавательный знак — заранее, а не тем, что база придумает сама:
+           он нужен и записи в базе, и копии в памяти. Без него свежая
+           тренировка в архиве до перезапуска не знала своего uuid —
+           и ни «В Телеграм» из «Поделиться», ни заметку тренера к ней
+           привязать было нельзя. */
+        val newUuid = java.util.UUID.randomUUID().toString()
+
         viewModelScope.launch {
             /* Запись целиком или никак.
              *
@@ -688,7 +695,8 @@ class TrainingSessionViewModel(private val database: WorkoutDatabase) : ViewMode
                         date = finishTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(),
                         duration = durationMinutes,
                         athleteWeight = s.athleteWeight,
-                        muscleGroup = muscleGroupSummary
+                        muscleGroup = muscleGroupSummary,
+                        uuid = newUuid
                     )
                 )
                 done.forEach { ex ->
@@ -738,7 +746,8 @@ class TrainingSessionViewModel(private val database: WorkoutDatabase) : ViewMode
             // То же, что легло в базу: без пустых упражнений. Иначе
             // архив до первого перезапуска показывал бы одно, а после — другое.
             exercises = done,
-            durationMinutes = durationMinutes
+            durationMinutes = durationMinutes,
+            uuid = newUuid
         ))
         // ── Рекорды у записи задним числом считаются заново ──
         //

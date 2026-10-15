@@ -163,6 +163,22 @@ class SyncApi(private val prefs: SyncPrefs) {
         }
     }
 
+    /**
+     * «Прислать в бот»: сервер собирает карточку тренировки (с таблицей
+     * подходов) и бот STYRK присылает её в мой чат с ним — оттуда её
+     * пересылают кому угодно. Ответ — ссылка на этот чат.
+     *
+     * [tzMinutes] — сдвиг моего пояса: в записи только метка времени,
+     * без пояса вечерняя тренировка ушла бы вчерашним числом.
+     */
+    suspend fun shareSend(uuid: String, tzMinutes: Int): Result<String> {
+        val body = JSONObject().put("uuid", uuid).put("tz", tzMinutes)
+        return when (val r = request("/api/share/send", "POST", body)) {
+            is Result.Fail -> r
+            is Result.Ok -> Result.Ok(r.data.optString("bot").ifBlank { "https://t.me/styrk_bot" })
+        }
+    }
+
     /** Вписал подходы тренера — отмечаю сделанными. */
     suspend fun liveOpsDone(ids: List<Long>): Result<Unit> {
         val a = JSONArray(); ids.forEach { a.put(it) }

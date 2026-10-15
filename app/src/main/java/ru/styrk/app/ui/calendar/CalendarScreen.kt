@@ -43,6 +43,8 @@ import ru.styrk.app.sync.SyncApi
 import ru.styrk.app.sync.SyncPrefs
 import ru.styrk.app.data.model.*
 import ru.styrk.app.ui.common.ExerciseGuideDialog
+import ru.styrk.app.ui.common.ShareChip
+import ru.styrk.app.ui.common.ShareDialog
 import ru.styrk.app.ui.common.MarkBox
 import ru.styrk.app.viewmodel.TrainingSessionViewModel
 import ru.styrk.app.ui.common.CappedFontScale
@@ -1418,6 +1420,7 @@ private fun WorkoutDetailSheet(
     onDeleted: () -> Unit
 ) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showShare by remember { mutableStateOf(false) }
     val dateFmt = DateTimeFormatter.ofPattern("dd MMMM yyyy", Locale.forLanguageTag("ru"))
     val timeFmt = DateTimeFormatter.ofPattern("HH:mm")
     val totalSets   = workout.exercises.sumOf { it.sets.size }
@@ -1429,10 +1432,15 @@ private fun WorkoutDetailSheet(
     val dur = if (h > 0 && m > 0) "$h ч $m мин" else if (h > 0) "$h ч" else "$m мин"
 
     LazyColumn(Modifier.fillMaxWidth(), contentPadding = PaddingValues(bottom = 32.dp)) {
-        item { Column(Modifier.fillMaxWidth().background(DarkGray).padding(horizontal = 20.dp, vertical = 16.dp)) {
-            Text(workout.dateTime.format(dateFmt), color = White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(3.dp))
-            Text("${workout.dateTime.format(timeFmt)}  •  ${workout.muscleGroup}", color = White.copy(.7f), fontSize = 13.sp)
+        item { Row(Modifier.fillMaxWidth().background(DarkGray).padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(workout.dateTime.format(dateFmt), color = White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(3.dp))
+                Text("${workout.dateTime.format(timeFmt)}  •  ${workout.muscleGroup}", color = White.copy(.7f), fontSize = 13.sp)
+            }
+            Spacer(Modifier.width(10.dp))
+            ShareChip { showShare = true }
         }}
         // Свод по тренировке. У календаря он СВОЙ, отдельный от такого же
         // окна в архиве, — я это упустил и чинил только архивное.
@@ -1517,6 +1525,17 @@ private fun WorkoutDetailSheet(
         }
     }
 
+    // ── ПОДЕЛИТЬСЯ ──────────────────────────────────────────────────
+    if (showShare) {
+        ShareDialog(
+            subject = ShareText.subject(workout),
+            text = ShareText.workout(workout) { n, t, s -> viewModel.isSetRecord(n, t, s) },
+            fileName = ShareText.fileName(workout),
+            workoutUuid = workout.uuid,
+            onDismiss = { showShare = false }
+        )
+    }
+
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
@@ -1563,6 +1582,7 @@ private fun PlannedDetailSheet(
     onDelete: () -> Unit
 ) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showShare by remember { mutableStateOf(false) }
     // Здесь разбор открывается и обычным нажатием: отмечать в этом
     // списке нечего, он только показывает, что запланировано.
     var guideName by remember { mutableStateOf<String?>(null) }
@@ -1575,14 +1595,19 @@ private fun PlannedDetailSheet(
     LazyColumn(Modifier.fillMaxWidth(), contentPadding = PaddingValues(bottom = 32.dp)) {
 
         item {
-            Column(Modifier.fillMaxWidth().background(DarkGray)
-                .padding(horizontal = 20.dp, vertical = 16.dp)) {
-                Text(planned.date.format(dateFmt), color = White,
-                    fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(3.dp))
-                Text("%s  •  %02d:%02d  •  %s".format(
-                    weekday, planned.hour, planned.minute, planned.muscleGroup),
-                    color = White.copy(.7f), fontSize = 13.sp)
+            Row(Modifier.fillMaxWidth().background(DarkGray)
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(planned.date.format(dateFmt), color = White,
+                        fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(3.dp))
+                    Text("%s  •  %02d:%02d  •  %s".format(
+                        weekday, planned.hour, planned.minute, planned.muscleGroup),
+                        color = White.copy(.7f), fontSize = 13.sp)
+                }
+                Spacer(Modifier.width(10.dp))
+                ShareChip { showShare = true }
             }
         }
 
@@ -1685,6 +1710,19 @@ private fun PlannedDetailSheet(
             ownDescription = own?.description,
             ownPhotoPath = own?.photoPath,
             onDismiss = { guideName = null }
+        )
+    }
+
+    // ── ПОДЕЛИТЬСЯ ПЛАНОМ ──
+    // Без «в Телеграм через бота»: карточку бот собирает из проведённой
+    // тренировки, а у плана её нет. Остальные способы — те же.
+    if (showShare) {
+        ShareDialog(
+            subject = ShareText.planSubject(planned),
+            text = ShareText.plan(planned),
+            fileName = ShareText.planFileName(planned),
+            workoutUuid = null,
+            onDismiss = { showShare = false }
         )
     }
 }

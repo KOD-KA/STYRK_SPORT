@@ -32,6 +32,9 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ru.styrk.app.data.model.CompletedWorkout
+import ru.styrk.app.data.model.ShareText
+import ru.styrk.app.ui.common.ShareChip
+import ru.styrk.app.ui.common.ShareDialog
 import ru.styrk.app.data.model.ExerciseHistory
 import ru.styrk.app.viewmodel.TrainingSessionViewModel
 import androidx.compose.material3.OutlinedTextField
@@ -425,6 +428,7 @@ private fun WorkoutDetailSheet(
     onDeleted: () -> Unit
 ) {
     var showDeleteConfirm by remember { mutableStateOf(false) }
+    var showShare by remember { mutableStateOf(false) }
     var saveAsMyTitle by remember { mutableStateOf<String?>(null) }
     var savedHint by remember { mutableStateOf<String?>(null) }
     val dateFmt = DateTimeFormatter.ofPattern("dd MMMM yyyy", java.util.Locale.forLanguageTag("ru"))
@@ -451,11 +455,16 @@ private fun WorkoutDetailSheet(
     LazyColumn(Modifier.fillMaxWidth(), contentPadding = PaddingValues(bottom = 32.dp)) {
 
         item {
-            Column(Modifier.fillMaxWidth().background(DarkGray).padding(horizontal = 20.dp, vertical = 16.dp)) {
-                Text(workout.dateTime.format(dateFmt), color = White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(2.dp))
-                Text("$detailTimeRange  •  ${workout.muscleGroup}",
-                    color = White.copy(alpha = 0.7f), fontSize = 13.sp)
+            Row(Modifier.fillMaxWidth().background(DarkGray).padding(horizontal = 20.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(workout.dateTime.format(dateFmt), color = White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(2.dp))
+                    Text("$detailTimeRange  •  ${workout.muscleGroup}",
+                        color = White.copy(alpha = 0.7f), fontSize = 13.sp)
+                }
+                Spacer(Modifier.width(10.dp))
+                ShareChip { showShare = true }
             }
         }
 
@@ -635,6 +644,17 @@ private fun WorkoutDetailSheet(
                 Text("Удалить тренировку", color = Color(0xFFE53935), fontSize = 14.sp, fontWeight = FontWeight.Medium)
             }
         }
+    }
+
+    // ── ПОДЕЛИТЬСЯ ──────────────────────────────────────────────────
+    if (showShare) {
+        ShareDialog(
+            subject = ShareText.subject(workout),
+            text = ShareText.workout(workout) { n, t, s -> viewModel.isSetRecord(n, t, s) },
+            fileName = ShareText.fileName(workout),
+            workoutUuid = workout.uuid,
+            onDismiss = { showShare = false }
+        )
     }
 
     /* Название спрашиваем сразу, а не потом.
