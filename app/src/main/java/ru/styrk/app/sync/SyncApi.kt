@@ -141,6 +141,28 @@ class SyncApi(private val prefs: SyncPrefs) {
             ))
         }
 
+    /**
+     * Начал или закончил тренировку. Кому написать — друзьям с правом
+     * «сообщать» и тренеру, чей план сейчас выполняется, — решает сервер.
+     *
+     * [day] — номер местного дня: по нему сервер находит назначение
+     * тренера на сегодня. [names] — упражнения тренировки.
+     */
+    suspend fun workoutEvent(
+        type: String, startedAt: Long, day: Long, group: String,
+        names: List<String>, minutes: Int = 0, exercises: Int = 0, sets: Int = 0
+    ): Result<Unit> {
+        val a = JSONArray(); names.take(60).forEach { a.put(it) }
+        val body = JSONObject()
+            .put("type", type).put("startedAt", startedAt).put("day", day)
+            .put("group", group).put("names", a)
+            .put("minutes", minutes).put("exercises", exercises).put("sets", sets)
+        return when (val r = request("/api/workout/event", "POST", body)) {
+            is Result.Fail -> r
+            is Result.Ok -> Result.Ok(Unit)
+        }
+    }
+
     /** Вписал подходы тренера — отмечаю сделанными. */
     suspend fun liveOpsDone(ids: List<Long>): Result<Unit> {
         val a = JSONArray(); ids.forEach { a.put(it) }
@@ -245,10 +267,20 @@ class SyncApi(private val prefs: SyncPrefs) {
          * с приятелем — обычное дело.
          */
         val weight: Boolean = false,
+        /**
+         * «Сообщать о тренировках»: начал и закончил — ему приходит
+         * сообщение в бота. Не показ, а извещение, поэтому отдельная
+         * галочка, снятая по умолчанию.
+         */
+        val notify: Boolean = false,
         /** До какого дня открыт доступ тренеру. null — бессрочно. */
         val until: Long? = null
     ) {
+        /** Не открыто ничего из того, с чем можно сравниться (рекорды, объём). */
         val nothing: Boolean get() = !records && !volume
+
+        /** Не открыто вообще ничего — ни показа, ни извещений, ни тренерства. */
+        val noneAtAll: Boolean get() = nothing && !weight && !notify && !coach
     }
 
     /** Карточка тренера: то единственное, что о нём знает ученик. */
@@ -488,6 +520,7 @@ class SyncApi(private val prefs: SyncPrefs) {
             .put("coach", share.coach)
             .put("body", share.body)
             .put("weight", share.weight)
+            .put("notify", share.notify)
             .put("until", share.until ?: JSONObject.NULL))
         ) {
             is Result.Fail -> r
@@ -737,6 +770,7 @@ class SyncApi(private val prefs: SyncPrefs) {
         coach = o?.optBoolean("coach") == true,
         body = o?.optBoolean("body") == true,
         weight = o?.optBoolean("weight") == true,
+        notify = o?.optBoolean("notify") == true,
         until = if (o == null || o.isNull("until")) null else o.optLong("until").takeIf { it > 0 }
     )
 

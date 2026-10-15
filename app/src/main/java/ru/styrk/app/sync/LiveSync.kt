@@ -31,6 +31,11 @@ import kotlin.coroutines.coroutineContext
  * нет». Запись задним числом не отправляется: её не с кем смотреть вживую.
  *
  * Работает, пока приложение открыто: крутится в MainScreen.
+ *
+ * Здесь же — два извещения: «начал» и «закончил». Их рассылает сервер
+ * друзьям, которым человек включил «Сообщать о тренировках», и тренеру,
+ * если выполняется назначенная им тренировка. Кому — решает сервер;
+ * телефон только говорит, что случилось. См. [announce].
  */
 object LiveSync {
 
@@ -48,6 +53,7 @@ object LiveSync {
 
         while (coroutineContext.isActive) {
             val s = vm.state.value
+            if (prefs.isSignedIn) announce(context, api, s)
             val active = prefs.isSignedIn && isRunning(s)
             val now = System.currentTimeMillis()
 
@@ -72,6 +78,64 @@ object LiveSync {
                 quietUntil = 0L
             }
             delay(if (active) 2_000 else 5_000)
+        }
+    }
+
+    // ── «начал» и «закончил» ─────────────────────────────────────────
+
+    private const val EVENTS = "styrk_events"
+    /** Не чаще раза в минуту, если сервер не ответил: не долбим его каждые две секунды. */
+    private var nextTry = 0L
+
+    /**
+     * Сообщить серверу о начале и конце тренировки — по одному разу.
+     *
+     * Что уже сообщено, помним в настройках по моменту начала: приложение
+     * могли закрыть посреди тренировки, и после возвращения «начал»
+     * не должен уйти второй раз. Сервер тоже отсекает повтор, но лишний
+     * запрос незачем и отправлять.
+     *
+     * «Начал» уходит, когда выбрано первое упражнение (или прошло три
+     * минуты): к этому моменту известна группа мышц, а заглянувший
+     * в тренировку и тут же вышедший никого не потревожит.
+     *
+     * «Закончил» — когда открылся экран итога, то есть тренировка
+     * сохранена. Отменённая тренировка не сообщается: сообщать нечего.
+     * Запись задним числом не сообщается вовсе.
+     */
+    private suspend fun announce(context: Context, api: SyncApi, s: CurrentWorkoutState) {
+        if (!s.trainingStarted || s.isBackdated) return
+        val now = System.currentTimeMillis()
+        if (now < nextTry) return
+        val startedAt = s.workoutStartTime.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        if (now - startedAt > 86_400_000L) return
+        val ev = context.getSharedPreferences(EVENTS, Context.MODE_PRIVATE)
+        val day = s.workoutStartTime.toLocalDate().toEpochDay()
+        val group = s.selectedExercises.mapNotNull { it.muscleGroup?.title }.distinct().joinToString(", ")
+
+        if (isRunning(s) && ev.getLong("start", 0L) != startedAt &&
+            (s.selectedExercises.isNotEmpty() || now - startedAt > 3 * 60_000L)) {
+            // Тренировка идёт уже два часа (приложение обновили посреди неё) —
+            // «начал» сейчас было бы враньём. Отмечаем как сказанное и молчим.
+            if (now - startedAt > 2 * 3_600_000L) {
+                ev.edit().putLong("start", startedAt).apply()
+            } else {
+                val r = api.workoutEvent("start", startedAt, day, group, s.selectedExercises.map { it.name })
+                if (r is SyncApi.Result.Ok) ev.edit().putLong("start", startedAt).apply()
+                else nextTry = now + 60_000L
+            }
+        }
+
+        if (s.currentScreen == "summary" && ev.getLong("finish", 0L) != startedAt) {
+            val done = s.selectedExercises.filter { it.sets.isNotEmpty() }
+            val r = api.workoutEvent(
+                "finish", startedAt, day, group, done.map { it.name },
+                minutes = ((now - startedAt) / 60_000L).toInt(),
+                exercises = done.size,
+                sets = done.sumOf { it.sets.size }
+            )
+            if (r is SyncApi.Result.Ok) ev.edit().putLong("finish", startedAt).apply()
+            else nextTry = now + 60_000L
         }
     }
 

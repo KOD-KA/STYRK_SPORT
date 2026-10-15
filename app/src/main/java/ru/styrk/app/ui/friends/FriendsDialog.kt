@@ -525,8 +525,26 @@ private fun shortWord(f: SyncApi.Friend): String {
         "объём".takeIf { f.share.volume },
         "вес".takeIf { f.share.weight }
     )
-    val what = if (seen.isEmpty()) "не видит ничего" else "видит " + seen.joinToString(", ")
+    val what = (if (seen.isEmpty()) "не видит ничего" else "видит " + seen.joinToString(", ")) +
+            (if (f.share.notify) " · узнаёт о тренировках" else "")
     return if (f.share.coach) "ваш тренер · $what" else what
+}
+
+/** Галочка права и «?» к ней: что именно получит друг. */
+@Composable
+private fun PermRow(
+    text: String,
+    checked: Boolean,
+    enabled: Boolean,
+    onInfo: () -> Unit,
+    onChange: (Boolean) -> Unit
+) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.weight(1f)) {
+            CheckRow(text = text, checked = checked, enabled = enabled, onChange = onChange)
+        }
+        InfoMark(onInfo)
+    }
 }
 
 @Composable
@@ -558,6 +576,10 @@ private fun FriendRow(
     onArmRemove: () -> Unit,
     onRemove: () -> Unit
 ) {
+    // Какое право сейчас объясняем в окне «?».
+    var info by remember { mutableStateOf<String?>(null) }
+    info?.let { key -> PermissionInfoDialog(key) { info = null } }
+
     Column(
         Modifier
             .fillMaxWidth()
@@ -625,8 +647,11 @@ private fun FriendRow(
                             .background(White, RoundedCornerShape(12.dp))
                             .padding(12.dp)
                     ) {
-                        Text("Ваш тренер", color = Black, fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Ваш тренер", color = Black, fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                            InfoMark { info = "coach" }
+                        }
                         Spacer(Modifier.height(3.dp))
                         Text(
                             "Видит ваш дневник целиком и планирует за вас тренировки." +
@@ -642,10 +667,11 @@ private fun FriendRow(
                             color = DarkGray, fontSize = 11.sp, lineHeight = 15.sp
                         )
                         Spacer(Modifier.height(8.dp))
-                        CheckRow(
+                        PermRow(
                             text = "Показывать ещё и замеры тела",
                             checked = friend.share.body,
-                            enabled = !busy
+                            enabled = !busy,
+                            onInfo = { info = "body" }
                         ) { onShare(friend.share.copy(body = it)) }
                         RowAction("Отозвать доверие", enabled = !busy) {
                             onShare(friend.share.copy(coach = false, body = false))
@@ -653,8 +679,13 @@ private fun FriendRow(
                     }
                 } else if (friend.coach != null) {
                     Spacer(Modifier.height(8.dp))
-                    RowAction("Сделать моим тренером", enabled = !busy, strong = true) {
-                        onAskCoach()
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.weight(1f)) {
+                            RowAction("Сделать моим тренером", enabled = !busy, strong = true) {
+                                onAskCoach()
+                            }
+                        }
+                        InfoMark { info = "coach" }
                     }
                 }
 
@@ -663,18 +694,20 @@ private fun FriendRow(
                     fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
                 Spacer(Modifier.height(6.dp))
 
-                CheckRow(
+                PermRow(
                     text = "Рекорды",
                     checked = friend.share.records,
-                    enabled = !busy
+                    enabled = !busy,
+                    onInfo = { info = "records" }
                 ) { onShare(friend.share.copy(records = it)) }
 
                 Spacer(Modifier.height(6.dp))
 
-                CheckRow(
+                PermRow(
                     text = "Объём за неделю",
                     checked = friend.share.volume,
-                    enabled = !busy
+                    enabled = !busy,
+                    onInfo = { info = "volume" }
                 ) { onShare(friend.share.copy(volume = it)) }
 
                 Spacer(Modifier.height(6.dp))
@@ -683,10 +716,11 @@ private fun FriendRow(
                    Рекорды говорят, сколько человек жмёт; вес — сколько он
                    весит, и это скрывают чаще. А замеры со снимком уходят
                    только тренеру. */
-                CheckRow(
+                PermRow(
                     text = "График веса",
                     checked = friend.share.weight,
-                    enabled = !busy
+                    enabled = !busy,
+                    onInfo = { info = "weight" }
                 ) { onShare(friend.share.copy(weight = it)) }
                 Text(
                     "Только линия веса на весах. Замеры и снимок сюда не входят — " +
@@ -694,7 +728,25 @@ private fun FriendRow(
                     color = DarkGray, fontSize = 11.sp, lineHeight = 15.sp
                 )
 
-                if (friend.share.nothing) {
+                /* Не «он видит», а «ему пишем»: это не показ, а извещение.
+                   В одном списке с показом его легко включить, не заметив,
+                   что теперь человеку будут приходить сообщения. */
+                Spacer(Modifier.height(10.dp))
+                Text("ЕМУ ПИШЕМ", color = DarkGray, fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
+                Spacer(Modifier.height(6.dp))
+                PermRow(
+                    text = "Когда я начал и закончил тренировку",
+                    checked = friend.share.notify,
+                    enabled = !busy,
+                    onInfo = { info = "notify" }
+                ) { onShare(friend.share.copy(notify = it)) }
+                Text(
+                    "Сообщение в Телеграм-бот STYRK — если у него привязан Телеграм.",
+                    color = DarkGray, fontSize = 11.sp, lineHeight = 15.sp
+                )
+
+                if (friend.share.noneAtAll) {
                     Spacer(Modifier.height(8.dp))
                     Text(
                         "Сейчас он не видит о вас ничего. Так и задумано — пока " +
@@ -705,17 +757,30 @@ private fun FriendRow(
 
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    when {
-                        friend.theirShare.nothing -> "Он вам пока ничего не открыл"
-                        friend.theirShare.records && friend.theirShare.volume ->
-                            "Он открыл вам рекорды и объём"
-                        friend.theirShare.records -> "Он открыл вам рекорды"
-                        else -> "Он открыл вам объём"
-                    },
+                    theirWord(friend.theirShare),
                     color = DarkGray, fontSize = 11.sp, lineHeight = 15.sp
                 )
             }
         }
+    }
+}
+
+/** Что друг открыл в обратную сторону — одной строкой. */
+private fun theirWord(t: SyncApi.Share): String {
+    val opened = listOfNotNull(
+        "рекорды".takeIf { t.records },
+        "объём".takeIf { t.volume },
+        "график веса".takeIf { t.weight }
+    )
+    val head = if (opened.isEmpty()) "" else "Он открыл вам " + when (opened.size) {
+        1 -> opened[0]
+        else -> opened.dropLast(1).joinToString(", ") + " и " + opened.last()
+    }
+    return when {
+        head.isEmpty() && !t.notify -> "Он вам пока ничего не открыл"
+        head.isEmpty() -> "Он сообщает вам о своих тренировках"
+        t.notify -> "$head и сообщает о тренировках"
+        else -> head
     }
 }
 
