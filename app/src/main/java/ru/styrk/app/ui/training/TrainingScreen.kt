@@ -781,6 +781,11 @@ private fun InlineExerciseBlock(
         if (addingSet && editingIndex == null)
             SetHints.pick(exercise.measureType, exercise.sets, planSets, previousSets)
         else null
+    // Все подходы этого упражнения из журнала — с ними сравнивается
+    // подозрительный подход (SetHints.doubt). Сегодняшние сюда не входят.
+    val historySets = remember(exercise.name, completedWorkouts) {
+        completedWorkouts.flatMap { w -> w.exercises.filter { it.name == exercise.name }.flatMap { it.sets } }
+    }
     // Похоже на опечатку — подход ждёт ответа «Записать / Исправить».
     var doubt by remember(exercise.id) {
         mutableStateOf<Pair<ru.styrk.app.data.model.WorkoutSet, String>?>(null)
@@ -907,13 +912,14 @@ private fun InlineExerciseBlock(
             }
         }
         // R194: похоже на опечатку (70 × 70 вместо 70 × 10, лишний ноль) —
-        // спросить. Взяли подсказку, ничего не вводя, или число не меняли —
+        // спросить. Рост за тренировку (разминка 20 → 40 → 80) — не повод. Взяли подсказку, ничего не вводя, или число не меняли —
         // не спрашиваем.
         val changed = inputs.any { it.isNotBlank() } &&
                 (editing == null || exercise.sets.getOrNull(editing) != newSet)
         val why = if (!changed) null else SetHints.doubt(
-            exercise.measureType, newSet,
-            exercise.sets.filterIndexed { i, _ -> i != editing } + previousSets
+            exercise.measureType, newSet, exercise.name, exercise.muscleGroup?.name,
+            history = historySets,
+            today = exercise.sets.filterIndexed { i, _ -> i != editing }
         )
         if (why != null) {
             doubt = newSet to why

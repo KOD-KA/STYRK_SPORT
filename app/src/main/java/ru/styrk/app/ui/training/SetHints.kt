@@ -60,34 +60,96 @@ object SetHints {
     }
 
     /**
-     * Похоже на опечатку — короткое пояснение, иначе null.
+     * Похоже на опечатку — короткое пояснение, иначе null (R194, R195).
      *
      * Ловит то, что случается на самом деле: 70 × 70 вместо 70 × 10
      * (повторы набрали весом), лишний ноль (600 вместо 60), перепутанные
-     * поля. Сравнивает с `refs` — сегодняшними подходами (без правимого)
-     * и прошлой тренировкой; без истории — только явные крайности.
-     * Записать всё равно можно — это вопрос, а не запрет.
+     * поля. Записать всё равно можно — это вопрос, а не запрет.
+     *
+     *  - `history` — все подходы этого упражнения из журнала (без
+     *    сегодняшней тренировки);
+     *  - `today` — сегодняшние подходы в этой карточке (без правимого).
+     *
+     * Главное правило: НЕ СПРАШИВАТЬ О ПРИВЫЧНОМ. Сегодняшние подходы
+     * для сравнения не годятся: разминка 20 → 40 → 80 — это рост
+     * за тренировку, а не опечатка (первая версия R194 спрашивала
+     * на каждом шаге). Сегодняшнее только гасит вопросы: что уже
+     * записали или подтвердили, второй раз не спрашивается.
+     *
+     * Вес:
+     *  1. есть история — вопрос, если вес вдвое больше и на 30 кг больше
+     *     известного. Вдвое, а не в полтора раза: лишний ноль и двойной
+     *     ввод дают ×10 и ×2, а честный рост — меньше;
+     *  2. потолок упражнения — для всех, включая первый раз. Сравнивается
+     *     расчётный разовый максимум (вес × (1 + повторы / 30), до 30
+     *     повторов): 400 × 10 в становой — вопрос, 400 × 1 — нет.
+     *     Потолки щедрые, с запасом на сильных людей: см. [cap].
+     * Повторы с весом: есть история — 30+ и вдвое больше известного;
+     * первый раз — 50+ или 30+ с весом от 40 кг (70 × 70).
+     * Свой вес: есть история — 30+ и втрое больше; первый раз — больше 150.
      */
-    fun doubt(type: MeasureType, s: WorkoutSet, refs: List<WorkoutSet>): String? {
+    fun doubt(
+        type: MeasureType,
+        s: WorkoutSet,
+        name: String,
+        group: String?,
+        history: List<WorkoutSet>,
+        today: List<WorkoutSet>
+    ): String? {
         if (type != MeasureType.WEIGHT_REPS && type != MeasureType.REPS) return null
         val w = if (type == MeasureType.WEIGHT_REPS) s.weight else 0f
         val r = s.reps
-        val maxW = refs.maxOfOrNull { it.weight } ?: 0f
-        val maxR = refs.maxOfOrNull { it.reps } ?: 0
+        val all = history + today
         if (w > 0f) {
-            if (maxW > 0f && w >= maxW * 1.5f && w - maxW >= 10f)
-                return "${num(w)} кг — в полтора раза больше обычного (до ${num(maxW)} кг)"
-            if (maxW <= 0f && w >= 500f)
-                return "${num(w)} кг — очень большой вес"
-            if (r >= 30 && (maxR <= 0 || r >= maxR * 2))
-                return if (maxR > 0) "$r повторов — больше обычного (до $maxR)"
-                       else "$r повторов с весом — очень много"
+            val weighted = all.filter { it.weight > 0f }
+            val baseW = weighted.maxOfOrNull { it.weight } ?: 0f
+            if (history.any { it.weight > 0f } && w >= baseW * 2f && w - baseW >= 30f)
+                return "Вдвое больше, чем вы поднимали в этом упражнении (до ${num(baseW)} кг)"
+            val e1 = e1rm(w, r)
+            if (e1 > cap(name, group) && e1 > (weighted.maxOfOrNull { e1rm(it.weight, it.reps) } ?: 0f))
+                return "Очень много для этого упражнения"
+            val baseR = weighted.maxOfOrNull { it.reps } ?: 0
+            if (r > baseR) {
+                if (history.any { it.weight > 0f && it.reps > 0 }) {
+                    if (r >= 30 && r >= baseR * 2) return "$r повторов — больше обычного (до $baseR)"
+                } else if (r >= 50 || (r >= 30 && w >= 40f)) {
+                    return "$r повторов с весом — очень много"
+                }
+            }
         } else {
-            if (r > 100 || (maxR > 0 && r >= 30 && r >= maxR * 3))
-                return if (maxR > 0) "$r повторов — больше обычного (до $maxR)"
-                       else "$r повторов — очень много"
+            val baseR = all.maxOfOrNull { it.reps } ?: 0
+            if (r > baseR) {
+                if (history.any { it.reps > 0 }) {
+                    if (r >= 30 && r >= baseR * 3) return "$r повторов — больше обычного (до $baseR)"
+                } else if (r > 150) {
+                    return "$r повторов — очень много"
+                }
+            }
         }
         return null
+    }
+
+    /** Расчётный разовый максимум (формула Эпли), повторы — до 30. */
+    private fun e1rm(w: Float, r: Int): Float = w * (1f + r.coerceIn(1, 30) / 30f)
+
+    /**
+     * Потолок упражнения — расчётный разовый максимум, выше которого
+     * у живого человека уже вопрос. С запасом на сильных: жим лёжа 300
+     * (250 × 5 проходит, 280 × 5 — уже вопрос), становая и присед 500
+     * (400 × 10 — вопрос), жим ногами 750. По названию — то, что в нём
+     * однозначно; иначе по группе мышц. Свои упражнения человека —
+     * по группе.
+     */
+    private fun cap(name: String, group: String?): Float {
+        val n = name.lowercase()
+        return when {
+            "гантел" in n -> 150f                                   // вес одной гантели
+            "жим ногами" in n || "одной ногой" in n || "гакк" in n || "носки" in n -> 750f
+            "станов" in n || "присед" in n || "ягодичн" in n || "румынск" in n || "шраги" in n -> 500f
+            group?.uppercase() in setOf("BICEPS", "TRICEPS", "FOREARMS", "NECK", "ABS") -> 200f
+            group?.uppercase() == "SHOULDERS" -> 250f
+            else -> 300f
+        }
     }
 
     private fun num(f: Float): String =
