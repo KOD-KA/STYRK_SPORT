@@ -445,7 +445,7 @@ private fun CoachConsentDialog(
             listOf(
                 "замеры тела, вес и снимок — это отдельная галочка, и по умолчанию она снята",
                 "возможность писать вам в приложении: переписки здесь нет",
-                "возможность что-либо изменить в ваших записях"
+                "возможность исправлять ваши записи — это тоже отдельная галочка, по умолчанию снята"
             ).forEach { Bullet(it) }
 
             Spacer(Modifier.height(14.dp))
@@ -673,8 +673,17 @@ private fun FriendRow(
                             enabled = !busy,
                             onInfo = { info = "body" }
                         ) { onShare(friend.share.copy(body = it)) }
+                        Spacer(Modifier.height(6.dp))
+                        // R196: исправлять тренировки — отдельное согласие,
+                        // снятое по умолчанию (см. PermissionInfo «edit»).
+                        PermRow(
+                            text = "Может исправлять тренировки за неделю",
+                            checked = friend.share.edit,
+                            enabled = !busy,
+                            onInfo = { info = "edit" }
+                        ) { onShare(friend.share.copy(edit = it)) }
                         RowAction("Отозвать доверие", enabled = !busy) {
-                            onShare(friend.share.copy(coach = false, body = false))
+                            onShare(friend.share.copy(coach = false, body = false, edit = false))
                         }
                     }
                 } else if (friend.coach != null) {

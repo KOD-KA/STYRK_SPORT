@@ -289,6 +289,11 @@ class SyncApi(private val prefs: SyncPrefs) {
          * галочка, снятая по умолчанию.
          */
         val notify: Boolean = false,
+        /**
+         * Тренер может исправлять тренировки за последние 7 дней (R196).
+         * Только вместе с [coach]; по умолчанию снята.
+         */
+        val edit: Boolean = false,
         /** До какого дня открыт доступ тренеру. null — бессрочно. */
         val until: Long? = null
     ) {
@@ -537,6 +542,7 @@ class SyncApi(private val prefs: SyncPrefs) {
             .put("body", share.body)
             .put("weight", share.weight)
             .put("notify", share.notify)
+            .put("edit", share.edit)
             .put("until", share.until ?: JSONObject.NULL))
         ) {
             is Result.Fail -> r
@@ -787,6 +793,7 @@ class SyncApi(private val prefs: SyncPrefs) {
         body = o?.optBoolean("body") == true,
         weight = o?.optBoolean("weight") == true,
         notify = o?.optBoolean("notify") == true,
+        edit = o?.optBoolean("edit") == true,
         until = if (o == null || o.isNull("until")) null else o.optLong("until").takeIf { it > 0 }
     )
 

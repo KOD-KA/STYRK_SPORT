@@ -239,8 +239,9 @@ private fun CoachHeader(c: SyncApi.Friend) {
         val until = c.share.until?.let {
             "до " + runCatching { LocalDate.ofEpochDay(it).format(DAY) }.getOrDefault("")
         } ?: "бессрочно"
-        Text("Видит $sees · доступ $until", color = White.copy(alpha = .8f),
-            fontSize = 12.sp, lineHeight = 17.sp)
+        Text("Видит $sees · доступ $until" +
+                (if (c.share.edit) " · может исправлять тренировки за неделю" else ""),
+            color = White.copy(alpha = .8f), fontSize = 12.sp, lineHeight = 17.sp)
         Spacer(Modifier.height(4.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(6.dp).background(Gold, CircleShape))
