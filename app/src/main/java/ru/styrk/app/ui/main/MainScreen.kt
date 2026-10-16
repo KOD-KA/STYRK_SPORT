@@ -113,6 +113,8 @@ fun MainScreen() {
     val workoutSaved by trainingViewModel.workoutSaved.collectAsState()
     LaunchedEffect(workoutSaved) {
         if (workoutSaved > 0) {
+            // «Закончил» тренеру и друзьям — в очередь сразу, уйдёт с первой связью (R194).
+            ru.styrk.app.sync.LiveSync.queueFinish(context, trainingViewModel.state.value)
             ru.styrk.app.sync.SyncManager(context, database).sync()
         }
     }

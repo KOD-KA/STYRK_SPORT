@@ -509,6 +509,20 @@ class TrainingSessionViewModel(private val database: WorkoutDatabase) : ViewMode
     }
 
     /**
+     * Удалить подход (R194): при правке подхода очистили все поля.
+     * Рекорд пересчитывается с нуля — удалённый подход мог быть рекордным.
+     */
+    fun removeSet(exerciseId: String, index: Int) {
+        val ex = _state.value.selectedExercises.find { it.id == exerciseId } ?: return
+        if (index !in ex.sets.indices) return
+        val updated = _state.value.selectedExercises.map {
+            if (it.id == exerciseId) it.copy(sets = it.sets.filterIndexed { i, _ -> i != index }) else it
+        }
+        setState(_state.value.copy(selectedExercises = updated))
+        recomputeExerciseStats(ex.name)
+    }
+
+    /**
      * БАГ 4: полный пересчёт рекордов упражнения из ВСЕХ подходов —
      * прошлых (архив) и текущей сессии. В отличие от updateStatsForSet,
      * умеет и понижать рекорд (если рекордный подход отредактировали вниз).

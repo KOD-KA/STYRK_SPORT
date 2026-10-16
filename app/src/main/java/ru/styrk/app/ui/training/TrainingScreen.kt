@@ -25,7 +25,9 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
+import android.widget.Toast
 import androidx.compose.material3.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -768,36 +770,22 @@ private fun InlineExerciseBlock(
         }
     }.orEmpty()
 
-    /* ПОДСКАЗКА В ПОЛЯХ: что было в этом подходе в прошлый раз.
-
-       Полупрозрачным шрифтом, прямо в пустых полях. Нажали галочку,
-       ничего не вводя, — подход запишется таким, как подсказано.
-       Начали вводить — поле и так пустое, подсказка просто уходит.
-
-       Откуда берётся, по порядку:
-         1. план тренера на этот подход;
-         2. для «вес × повторы» — САМЫЙ ТЯЖЁЛЫЙ подход из сегодняшних
-            и прошлой тренировки, при равном весе — с бо́льшими повторами
-            (R184). Раньше брался тот же по счёту подход прошлого раза:
-            сделал сегодня 15 × 10, а третьему подходу подсказывало
-            прошлые 12,5 × 12 — шаг назад;
-         3. тот же подход прошлой тренировки;
-         4. последний подход сегодня — если сегодня делаете больше
-            подходов, чем в прошлый раз;
-         5. последний подход прошлой тренировки.
-       Пункты 3–5 остались для всего, где веса нет: свой вес, время,
-       дистанция, кардио.
-       При правке уже записанного подхода подсказки нет: там в полях
-       стоят его собственные числа. */
+    /* ПОДСКАЗКА В ПОЛЯХ — полупрозрачным шрифтом прямо в пустых полях.
+       Нажали галочку, ничего не вводя, — подход запишется таким, как
+       подсказано. Начали вводить — подсказка уходит.
+       Что подсказывается — SetHints.pick (R194): первый подход — по плану
+       или как в прошлый раз, дальше — тяжелее из «только что сделал»
+       и «по плану на этот подход», без скачка больше 20 %.
+       При правке записанного подхода подсказки нет: там его числа. */
     val hint: ru.styrk.app.data.model.WorkoutSet? =
-        if (addingSet && editingIndex == null) {
-            val i = exercise.sets.size
-            planSets.getOrNull(i)
-                ?: heaviestSet(exercise.measureType, exercise.sets + previousSets)
-                ?: previousSets.getOrNull(i)
-                ?: exercise.sets.lastOrNull()
-                ?: previousSets.lastOrNull()
-        } else null
+        if (addingSet && editingIndex == null)
+            SetHints.pick(exercise.measureType, exercise.sets, planSets, previousSets)
+        else null
+    // Похоже на опечатку — подход ждёт ответа «Записать / Исправить».
+    var doubt by remember(exercise.id) {
+        mutableStateOf<Pair<ru.styrk.app.data.model.WorkoutSet, String>?>(null)
+    }
+    val context = LocalContext.current
 
     val focusManager = LocalFocusManager.current
     val repsFocusRequester = remember(exercise.id) { FocusRequester() }
@@ -840,7 +828,33 @@ private fun InlineExerciseBlock(
     // ИСПРАВЛЕНО: передаём exercise.id (уникальный id экземпляра), а не
     // exercise.name — ViewModel ищет упражнение по id, поиск по имени
     // никогда не находил совпадения и подход просто не сохранялся
+    fun closeForm() {
+        clearInputs()
+        addingSet = false; editingIndex = null
+        focusManager.clearFocus()
+    }
+
+    fun saveSet(newSet: ru.styrk.app.data.model.WorkoutSet) {
+        val idx = editingIndex
+        if (idx != null) {
+            viewModel.updateSet(exercise.id, idx, newSet)
+        } else {
+            viewModel.addSetToExercise(exercise.id, newSet)
+        }
+        closeForm()
+    }
+
     fun confirmForm() {
+        val inputs = listOf(weightInput, repsInput, minInput, secInput, kmInput, loadInput, speedInput)
+        val editing = editingIndex
+        // R194: при правке очистили все поля — подход удаляется.
+        // Лишний подход, введённый по ошибке, иначе было не убрать.
+        if (editing != null && inputs.all { it.isBlank() }) {
+            viewModel.removeSet(exercise.id, editing)
+            Toast.makeText(context, "Подход ${editing + 1} удалён", Toast.LENGTH_SHORT).show()
+            closeForm()
+            return
+        }
         // Собираем подход в зависимости от типа упражнения.
         // return внутри ветки = не все обязательные поля заполнены.
         val newSet: ru.styrk.app.data.model.WorkoutSet = when (exercise.measureType) {
@@ -892,15 +906,40 @@ private fun InlineExerciseBlock(
                 )
             }
         }
-        val idx = editingIndex
-        if (idx != null) {
-            viewModel.updateSet(exercise.id, idx, newSet)
-        } else {
-            viewModel.addSetToExercise(exercise.id, newSet)
+        // R194: похоже на опечатку (70 × 70 вместо 70 × 10, лишний ноль) —
+        // спросить. Взяли подсказку, ничего не вводя, или число не меняли —
+        // не спрашиваем.
+        val changed = inputs.any { it.isNotBlank() } &&
+                (editing == null || exercise.sets.getOrNull(editing) != newSet)
+        val why = if (!changed) null else SetHints.doubt(
+            exercise.measureType, newSet,
+            exercise.sets.filterIndexed { i, _ -> i != editing } + previousSets
+        )
+        if (why != null) {
+            doubt = newSet to why
+            return
         }
-        clearInputs()
-        addingSet = false; editingIndex = null
-        focusManager.clearFocus()
+        saveSet(newSet)
+    }
+
+    doubt?.let { (pending, why) ->
+        AlertDialog(
+            onDismissRequest = { doubt = null },
+            containerColor = White,
+            title = { Text("Проверьте подход", color = Black, fontWeight = FontWeight.Bold) },
+            text = {
+                Text("${SetFormat.value(exercise.measureType, pending)}\n$why. Записать так?",
+                    color = DarkGray, fontSize = 14.sp, lineHeight = 20.sp)
+            },
+            confirmButton = {
+                TextButton(onClick = { doubt = null; saveSet(pending) }) {
+                    Text("Записать", color = Black, fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { doubt = null }) { Text("Исправить", color = Black) }
+            }
+        )
     }
 
     // ── КАРТОЧКА УПРАЖНЕНИЯ: РОЛИК, ГРУППЫ, ТЕХНИКА ──
@@ -1160,6 +1199,13 @@ private fun InlineExerciseBlock(
                         color = DarkGray, fontSize = 11.sp
                     )
                 }
+                if (editingIndex != null) {
+                    Spacer(Modifier.height(5.dp))
+                    Text(
+                        "Очистите поля и нажмите ✓ — подход удалится",
+                        color = DarkGray, fontSize = 11.sp
+                    )
+                }
             }
         }
     }
@@ -1198,18 +1244,3 @@ private fun SetField(
         )
     )
 }
-/**
- * Самый тяжёлый подход для подсказки в полях (R184).
- *
- * Только для «вес × повторы» и только среди подходов с весом: у своего
- * веса, времени и дистанции «тяжелее» не означает ничего, там подсказка
- * идёт по-старому — тем же по счёту подходом прошлого раза.
- * При равном весе берётся подход с бо́льшим числом повторов.
- */
-private fun heaviestSet(
-    type: MeasureType,
-    sets: List<ru.styrk.app.data.model.WorkoutSet>
-): ru.styrk.app.data.model.WorkoutSet? =
-    if (type != MeasureType.WEIGHT_REPS) null
-    else sets.filter { it.weight > 0f }
-        .maxWithOrNull(compareBy<ru.styrk.app.data.model.WorkoutSet>({ it.weight }, { it.reps }))
