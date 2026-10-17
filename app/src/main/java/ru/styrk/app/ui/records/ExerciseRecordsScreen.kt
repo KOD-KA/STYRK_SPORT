@@ -293,6 +293,20 @@ fun ExerciseRecordsScreen(
                             pointLabels = volumePoints.map { it.first.format(chartDateFmt) },
                             unit = "кг"
                         )
+                        // Гантели парами: объём за обе. Без этой строки рекорд
+                        // 4000 при подходе 200 × 10 выглядит ошибкой счёта (R198).
+                        if (PairedExercises.isPaired(rec.exerciseName)) {
+                            Spacer(Modifier.height(8.dp))
+                            val w = rec.bestVolumeWeight
+                            val r = rec.bestVolumeReps
+                            Text(
+                                "Объём считается за обе гантели: 2 × вес × повторы." +
+                                        (if (w != null && r != null)
+                                            " Рекорд ${rec.bestVolume.toInt()} кг = 2 × ${fmtW(w)} × $r."
+                                        else ""),
+                                color = DarkGray, fontSize = 11.sp, lineHeight = 15.sp
+                            )
+                        }
                     }
                     if (showAllVolume) {
                         FullHistoryChart(
